@@ -119,6 +119,50 @@ pre.out.err { color: var(--bad); }
 .hint { color: var(--muted); }
 .empty { color: var(--muted); font-size: 14px; }
 
+/* recall game */
+.g-bar { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.g-bar .sp { flex: 1; }
+.lives { display: flex; gap: 6px; }
+.lives i { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); transition: transform 0.25s, background 0.25s; }
+.lives i.gone { background: var(--faint); transform: scale(0.7); }
+.lives i.hit { animation: hit 0.45s ease-out; }
+@keyframes hit { 0%, 100% { transform: scale(0.7); } 30% { transform: scale(1.6); } }
+.g-score { font-family: var(--mono); font-size: 15px; font-variant-numeric: tabular-nums; }
+.g-score b { font-weight: 600; }
+.combo { font-family: var(--mono); font-size: 13px; color: var(--accent); min-width: 2.5em; }
+.combo.bump { animation: pop 0.4s ease-out; display: inline-block; }
+.prog { height: 3px; background: var(--faint); border-radius: 2px; overflow: hidden; }
+.prog i { display: block; height: 100%; background: var(--fg); transition: width 0.3s; }
+.card-q { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.card-q .eyebrow { font-size: 13px; color: var(--muted); }
+.card-q h2 { margin: 0; font-size: clamp(22px, 4vw, 28px); line-height: 1.25; letter-spacing: -0.02em; font-weight: 600; text-wrap: balance; }
+.card-q h2 code { font-size: 0.85em; background: var(--code-bg); padding: 1px 6px; border-radius: 5px; }
+.opts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.opt { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 12px; align-items: baseline; text-align: left; padding: 13px 16px; border-radius: 10px; background: var(--code-bg); border: 2px solid transparent; transition: border-color 0.12s, transform 0.12s; }
+.opt:hover:not(:disabled) { border-color: var(--faint); transform: translateX(2px); }
+.opt:disabled { cursor: default; }
+.opt .key { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.opt .txt { min-width: 0; overflow-wrap: anywhere; }
+.opt .txt.code { font-family: var(--mono); font-size: 14px; }
+.opt.right { border-color: var(--ok); }
+.opt.right .key { color: var(--ok); }
+.opt.wrong { border-color: var(--bad); animation: shake 0.35s; }
+.opt.dim { opacity: 0.4; }
+@keyframes shake { 0%, 100% { transform: none; } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+.why { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding-top: 14px; border-top: 2px solid var(--bad); }
+.why.good { border-top-color: var(--ok); }
+.why p { margin: 0; }
+.why code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+.float { position: fixed; font-family: var(--mono); font-weight: 600; color: var(--ok); pointer-events: none; z-index: 31; animation: floatup 0.8s ease-out forwards; }
+@keyframes floatup { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-40px); } }
+.missed { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.missed div { display: grid; gap: 2px; }
+.missed .q { color: var(--muted); font-size: 14px; }
+.missed code { font-family: var(--mono); font-size: 14px; }
+.sec { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; font-size: 14px; }
+.sec .dots .d { width: 10px; height: 10px; cursor: default; }
+.sec .dots .d:hover { transform: none; }
+
 /* reference */
 .drawer { position: fixed; inset: 0 0 0 auto; width: min(420px, 100%); background: var(--bg); border-left: 1px solid var(--faint); z-index: 20; display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px); }
 .dh { display: flex; gap: 18px; align-items: center; padding: 18px 22px; font-size: 14px; }
@@ -134,7 +178,7 @@ pre.out.err { color: var(--bad); }
 
 canvas.fx { position: fixed; inset: 0; pointer-events: none; z-index: 30; }
 @media (max-width: 600px) { .page { padding-block: 24px 60px; gap: 32px; } }
-@media (prefers-reduced-motion: reduce) { .d.pop { animation: none; } .go, .run { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .d.pop, .opt.wrong, .lives i.hit, .combo.bump, .float { animation: none; } .go, .run { transition: none; } }
 </style>
 
 <div id="app"></div>
@@ -286,6 +330,11 @@ function renderHome() {
     <div>${nu ? `<button type="button" class="go" id="go">${nu[0] === 'drills' ? 'Continue' : 'Next problem'} <small>${esc(QBY[nu[1]].title)}</small> →</button>` : `<button type="button" class="go" id="mockGo">Everything solved. Try a mock quiz →</button>`}</div>
     <section class="tracks">
       <div class="track">
+        <div class="track-h"><button type="button" id="recall">Recall</button><span class="n">${rLearned()}/${RECALL.length} learned${rBest() ? ' · best ' + rBest() : ''}</span></div>
+        <p>A card game for everything that is not in the course doc. 3 lives.</p>
+        <div class="dots">${RECALL.map(c => `<span class="d ${rCls(c.id)}" title="${esc(RECALL_SECTIONS[c.s])}"></span>`).join('')}</div>
+      </div>
+      <div class="track">
         <div class="track-h"><button type="button" data-open="drills">Moves</button><span class="n">${dDone}/${DRILLS.length}</span></div>
         ${dots(DRILLS, 'drills')}
       </div>
@@ -302,8 +351,9 @@ function renderHome() {
   if ($('#go')) $('#go').onclick = () => openList(nu[0], nu[1]);
   if ($('#mockGo')) $('#mockGo').onclick = startExam;
   $('#mock').onclick = () => ex ? openExam() : startExam();
+  $('#recall').onclick = startRecall;
   document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => { const m = b.dataset.open; const src = m === 'drills' ? DRILLS : QUESTIONS; const f = src.find(q => !done(q.id)) || src[0]; openList(m, f.id); });
-  document.querySelectorAll('.d').forEach(b => b.onclick = () => openList(b.dataset.m, b.dataset.id));
+  document.querySelectorAll('button.d').forEach(b => b.onclick = () => openList(b.dataset.m, b.dataset.id));
   $('#refBtn').onclick = toggleDrawer;
 }
 
@@ -473,6 +523,115 @@ function renderSummary() {
   };
 }
 
+/* recall game */
+const rStore = () => store.recall || (store.recall = { best: 0, cards: {}, games: 0 });
+const rCard = id => rStore().cards[id] || { right: 0, wrong: 0, streak: 0 };
+const rIsLearned = id => rCard(id).streak >= 2;
+const rLearned = () => RECALL.filter(c => rIsLearned(c.id)).length;
+const rBest = () => rStore().best || 0;
+const rCls = id => rIsLearned(id) ? 'full' : (rCard(id).right + rCard(id).wrong) ? 'part' : '';
+const fmtq = t => esc(t).replace(/`([^`]+)`/g, '<code>$1</code>');
+const ROUND = 15, LIVES = 3;
+let G = null;
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function startRecall() {
+  const w = c => { const k = rCard(c.id); return rIsLearned(c.id) ? 1 : 3 + k.wrong * 2; };
+  const pool = RECALL.slice(), deck = [];
+  while (deck.length < Math.min(ROUND, pool.length)) {
+    const tot = pool.reduce((s, c) => s + w(c), 0);
+    let r = Math.random() * tot, i = 0;
+    while ((r -= w(pool[i])) > 0) i++;
+    deck.push(pool.splice(i, 1)[0]);
+  }
+  G = { deck: deck.map(c => ({ c, order: shuffle([0, 1, 2, 3]) })), i: 0, lives: LIVES, score: 0, combo: 0, picked: null, missed: [], hit: false };
+  view = 'game'; closeDrawer(); renderGame(); window.scrollTo({ top: 0 });
+}
+function renderGame() {
+  const it = G.deck[G.i], c = it.c, ans = G.picked;
+  const mult = 1 + Math.floor(G.combo / 3);
+  const optHTML = it.order.map((k, n) => {
+    let cls = '';
+    if (ans !== null) cls = k === 0 ? 'right' : k === ans ? 'wrong' : 'dim';
+    return `<button type="button" class="opt ${cls}" data-k="${k}" ${ans !== null ? 'disabled' : ''}><span class="key">${n + 1}</span><span class="txt ${c.plain ? '' : 'code'}">${esc(c.o[k])}</span></button>`;
+  }).join('');
+  $('#app').innerHTML = `<main class="page work">
+    <div class="g-bar">
+      <button type="button" class="link" id="back">← quit</button>
+      <span class="sp"></span>
+      <span class="combo ${G.bump ? 'bump' : ''}">${mult > 1 ? '×' + mult : ''}</span>
+      <span class="g-score"><b>${G.score}</b></span>
+      <span class="lives" aria-label="${G.lives} lives left">${Array.from({ length: LIVES }, (_, n) => `<i class="${n >= G.lives ? 'gone' : ''} ${G.hit && n === G.lives ? 'hit' : ''}"></i>`).join('')}</span>
+    </div>
+    <div class="prog"><i style="width:${100 * G.i / G.deck.length}%"></i></div>
+    <section class="card-q">
+      <div class="eyebrow">${esc(RECALL_SECTIONS[c.s].toLowerCase())} · ${G.i + 1} of ${G.deck.length}</div>
+      <h2>${fmtq(c.q)}</h2>
+    </section>
+    <div class="opts">${optHTML}</div>
+    ${ans !== null ? `<section class="why ${ans === 0 ? 'good' : ''}"><p>${fmtq(c.why)}</p><button type="button" class="next" id="gNext">${G.lives <= 0 || G.i === G.deck.length - 1 ? 'results' : 'next'} →<small>↵</small></button></section>` : ''}
+  </main>`;
+  G.bump = false; G.hit = false;
+  $('#back').onclick = endRecall;
+  document.querySelectorAll('.opt').forEach(b => b.onclick = () => pick(Number(b.dataset.k), b));
+  if ($('#gNext')) { $('#gNext').onclick = gNext; $('#gNext').focus({ preventScroll: true }); }
+}
+function pick(k, btn) {
+  if (!G || G.picked !== null) return;
+  const c = G.deck[G.i].c, rec = Object.assign({ right: 0, wrong: 0, streak: 0 }, rCard(c.id));
+  G.picked = k;
+  if (k === 0) {
+    G.combo++;
+    const gain = 100 * (1 + Math.floor((G.combo - 1) / 3));
+    G.score += gain; rec.right++; rec.streak++;
+    if (G.combo % 3 === 0) G.bump = true;
+    const r = btn.getBoundingClientRect();
+    burst(r.left + r.width - 40, r.top + r.height / 2);
+    const f = document.createElement('div'); f.className = 'float'; f.textContent = '+' + gain;
+    f.style.left = (r.left + r.width - 70) + 'px'; f.style.top = (r.top - 4) + 'px';
+    document.body.appendChild(f); setTimeout(() => f.remove(), 900);
+  } else {
+    G.combo = 0; G.lives--; G.hit = true; rec.wrong++; rec.streak = 0;
+    G.missed.push(c);
+  }
+  rStore().cards[c.id] = rec; save();
+  renderGame();
+  if (k === 0) { clearTimeout(G.t); const gi = G.i; G.t = setTimeout(() => { if (G && G.i === gi && view === 'game') gNext(); }, 900); }
+}
+function gNext() {
+  if (!G) return;
+  clearTimeout(G.t);
+  if (G.lives <= 0 || G.i >= G.deck.length - 1) return endRecall();
+  G.i++; G.picked = null; renderGame();
+}
+function endRecall() {
+  if (!G) return renderHome();
+  clearTimeout(G.t);
+  const rs = rStore(), done = G.i + (G.picked !== null ? 1 : 0);
+  const newBest = G.score > (rs.best || 0) && G.score > 0;
+  if (done > 0) { rs.games = (rs.games || 0) + 1; if (newBest) rs.best = G.score; save(); }
+  const g = G; G = null; view = 'recallEnd';
+  const perfect = g.missed.length === 0 && done === g.deck.length;
+  $('#app').innerHTML = `<main class="page">
+    <div class="top"><button type="button" class="link" id="back">← home</button></div>
+    <section class="hero"><h1>${g.score}<span>.</span></h1><p>${newBest ? 'New best. ' : rs.best ? 'Best ' + rs.best + '. ' : ''}${perfect ? 'Flawless round.' : g.lives <= 0 ? 'Out of lives after ' + done + ' cards.' : done + ' cards played.'} ${rLearned()}/${RECALL.length} learned (right twice in a row).</p></section>
+    <div><button type="button" class="go" id="again">Play again →</button></div>
+    ${g.missed.length ? `<section class="track"><div class="track-h"><span style="font-size:20px;font-weight:600">Missed</span><span class="n">${g.missed.length}</span></div><div class="missed">${g.missed.map(c => `<div><span class="q">${fmtq(c.q)}</span>${c.plain ? `<span>${esc(c.o[0])}</span>` : `<code>${esc(c.o[0])}</code>`}</div>`).join('')}</div></section>` : ''}
+    <section class="tracks">${Object.keys(RECALL_SECTIONS).map(s => { const cs = RECALL.filter(c => c.s === s); return `<div class="sec"><span>${esc(RECALL_SECTIONS[s])}</span><span class="n" style="font-family:var(--mono);font-size:13px;color:var(--muted)">${cs.filter(c => rIsLearned(c.id)).length}/${cs.length}</span><div class="dots">${cs.map(c => `<span class="d ${rCls(c.id)}"></span>`).join('')}</div></div>`; }).join('')}</section>
+  </main>`;
+  $('#back').onclick = renderHome;
+  $('#again').onclick = startRecall;
+  $('#again').focus({ preventScroll: true });
+}
+document.addEventListener('keydown', e => {
+  if (view !== 'game' || !G || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (G.picked === null && /^[1-4]$/.test(e.key)) {
+    const b = document.querySelectorAll('.opt')[Number(e.key) - 1];
+    if (b) { e.preventDefault(); pick(Number(b.dataset.k), b); }
+  } else if (G.picked !== null && (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight')) {
+    e.preventDefault(); gNext();
+  }
+});
+
 /* reference */
 const DOC = [
   ['Typecasting', [['float(x)', 'Number or numeric string to float.'], ['int(x)', 'Number or numeric string to int. Drops the decimals.']]],
@@ -497,10 +656,10 @@ function closeDrawer() { $('#drawer').hidden = true; }
 function renderDrawer() {
   const lock = view === 'work' && isMock() && store.exam && !store.exam.done;
   if (lock) refTab = 'doc';
-  $('#dh').innerHTML = `<button type="button" class="tabb ${refTab === 'doc' ? 'on' : ''}" data-t="doc">course doc</button>${lock ? '' : `<button type="button" class="tabb ${refTab === 'pat' ? 'on' : ''}" data-t="pat">patterns</button>`}<span class="sp"></span><button type="button" class="link" id="dClose">close</button>`;
+  $('#dh').innerHTML = `<button type="button" class="tabb ${refTab === 'doc' ? 'on' : ''}" data-t="doc">course doc</button>${lock ? '' : `<button type="button" class="tabb ${refTab === 'sheet' ? 'on' : ''}" data-t="sheet">cheat sheet</button><button type="button" class="tabb ${refTab === 'pat' ? 'on' : ''}" data-t="pat">patterns</button>`}<span class="sp"></span><button type="button" class="link" id="dClose">close</button>`;
   document.querySelectorAll('.tabb').forEach(t => t.onclick = () => { refTab = t.dataset.t; renderDrawer(); });
   $('#dClose').onclick = closeDrawer;
-  const data = refTab === 'doc' ? DOC : Object.keys(GROUPS).map(g => [GROUPS[g], DRILLS.filter(d => d.group === g).map(d => [d.title, d.idea])]);
+  const data = refTab === 'doc' ? DOC : refTab === 'sheet' ? Object.keys(RECALL_SECTIONS).map(k => [RECALL_SECTIONS[k], RECALL.filter(c => c.s === k).map(c => [c.o[0], c.q.replace(/`/g, '') + ' ' + c.why.replace(/`/g, '')])]) : Object.keys(GROUPS).map(g => [GROUPS[g], DRILLS.filter(d => d.group === g).map(d => [d.title, d.idea])]);
   const v = refQ.trim().toLowerCase();
   const html = data.map(([h, fs]) => { const hits = fs.filter(f => !v || (f[0] + ' ' + f[1]).toLowerCase().includes(v)); return hits.length ? `<h5>${esc(h)}</h5>${hits.map(f => `<div class="fn"><code>${esc(f[0])}</code><p>${esc(f[1])}</p></div>`).join('')}` : ''; }).join('');
   $('#db').innerHTML = `<input id="refQ" type="search" placeholder="search" value="${esc(refQ)}" aria-label="Search the reference">${html || '<p class="empty">No matches.</p>'}`;
