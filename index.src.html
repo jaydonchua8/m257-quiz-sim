@@ -1,0 +1,516 @@
+<meta charset="utf-8">
+<title>257 Quiz Simulator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: one narrow column. Progress is a row of dots, one per item. Everything else is text. */
+:root {
+  --bg: #ffffff;
+  --fg: #111214;
+  --muted: #8a8d94;
+  --faint: #ececee;
+  --accent: #ff5f05;
+  --ok: #12a150;
+  --bad: #e5484d;
+  --code-bg: #f7f7f8;
+  --sans: "Geist", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #0d0d0e; --fg: #f1f1f2; --muted: #75787f; --faint: #232326; --accent: #ff7a2e; --ok: #3ccb7f; --bad: #ff6b70; --code-bg: #161618; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #0d0d0e; --fg: #f1f1f2; --muted: #75787f; --faint: #232326; --accent: #ff7a2e; --ok: #3ccb7f; --bad: #ff6b70; --code-bg: #161618; color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+code { font-family: var(--mono); font-size: 0.9em; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+.page { max-width: 720px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); padding-block: 40px 80px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; }
+.top { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--muted); }
+.top .sp { flex: 1; }
+.rt { display: inline-flex; align-items: center; gap: 6px; }
+.rt i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+.rt.ok i { background: var(--ok); } .rt.bad i { background: var(--bad); }
+.link { color: var(--muted); font-size: 14px; }
+.link:hover:not(:disabled) { color: var(--fg); }
+.link:disabled { opacity: 0.4; cursor: default; }
+
+/* home */
+.hero h1 { font-size: clamp(40px, 8vw, 64px); line-height: 1; letter-spacing: -0.04em; font-weight: 700; margin: 0 0 12px; }
+.hero h1 span { color: var(--accent); }
+.hero p { margin: 0; color: var(--muted); }
+.go { display: inline-flex; align-items: center; gap: 10px; background: var(--fg); color: var(--bg); padding: 14px 22px; border-radius: 999px; font-weight: 600; font-size: 16px; transition: transform 0.15s; }
+.go:hover { transform: translateX(3px); }
+.go small { opacity: 0.6; font-weight: 400; }
+.tracks { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
+.track { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.track-h { display: flex; align-items: baseline; gap: 12px; }
+.track-h button { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+.track-h button:hover { color: var(--accent); }
+.track-h .n { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.track-h .sp { flex: 1; }
+.track p { margin: 0; color: var(--muted); font-size: 14px; }
+.dots { display: flex; flex-wrap: wrap; gap: 7px; }
+.d { width: 14px; height: 14px; border-radius: 50%; background: var(--faint); transition: transform 0.15s, background 0.2s; }
+.d:hover { transform: scale(1.35); }
+.d.part { background: var(--accent); opacity: 0.45; }
+.d.full { background: var(--ok); }
+.d.cur { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--fg); }
+.d.pop { animation: pop 0.5s ease-out; }
+@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.8); } 100% { transform: scale(1); } }
+.past { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+
+/* work */
+.page.work { gap: 24px; }
+.bar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.bar .rt span { display: none; }
+.navdots { margin-top: -8px; }
+.bar .sp { flex: 1; }
+.streak { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.streak b { color: var(--accent); }
+.q h1 { font-size: clamp(28px, 5vw, 38px); line-height: 1.1; letter-spacing: -0.03em; font-weight: 700; margin: 4px 0 0; text-wrap: balance; }
+.eyebrow { font-size: 13px; color: var(--muted); }
+.prompt { font-size: 16px; }
+.prompt p, .prompt ul, .prompt ol { margin: 0 0 12px; }
+.prompt li + li { margin-top: 4px; }
+.prompt pre { font-family: var(--mono); font-size: 14px; background: var(--code-bg); padding: 12px 14px; border-radius: 8px; overflow-x: auto; margin: 0 0 12px; }
+.prompt code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+.prompt pre code { background: none; padding: 0; }
+.prompt .ban { color: var(--accent); }
+.io { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 6px 12px; font-size: 14px; align-items: baseline; }
+.io .k { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.io .vs { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.v code { font-weight: 600; background: none; padding: 0; }
+.v span { color: var(--muted); font-size: 13px; margin-left: 5px; }
+.ed { border-radius: 10px; overflow: hidden; background: var(--code-bg); }
+#editor, #editorFallback { width: 100%; height: 260px; font-family: var(--mono); font-size: 14px; }
+#editor.short, #editorFallback.short { height: 180px; }
+#editorFallback { border: 0; padding: 14px; resize: vertical; background: var(--code-bg); color: var(--fg); display: block; outline: none; }
+.row { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.run { background: var(--accent); color: #fff; padding: 11px 22px; border-radius: 999px; font-weight: 600; display: inline-flex; gap: 10px; align-items: baseline; transition: transform 0.12s; }
+.run:hover:not(:disabled) { transform: translateY(-1px); }
+.run:active:not(:disabled) { transform: translateY(1px); }
+.run:disabled { opacity: 0.45; cursor: default; }
+.run small { font-family: var(--mono); font-size: 12px; opacity: 0.75; font-weight: 400; }
+.res:empty { display: none; }
+.res { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.verdict { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; display: flex; align-items: baseline; gap: 12px; }
+.verdict.ok { color: var(--ok); } .verdict.no { color: var(--bad); }
+.verdict small { font-family: var(--mono); font-size: 14px; color: var(--muted); font-weight: 400; letter-spacing: 0; }
+.fails { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.fails li::before { content: "✗  "; color: var(--bad); font-weight: 700; }
+.fails li.ok::before { content: "✓  "; color: var(--ok); }
+.fails li.ok { color: var(--muted); }
+pre.out { font-family: var(--mono); font-size: 13px; background: var(--code-bg); padding: 12px 14px; border-radius: 8px; margin: 0; white-space: pre-wrap; word-break: break-word; max-height: 240px; overflow: auto; }
+pre.out.err { color: var(--bad); }
+.lbl { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.idea { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 16px 0; border-top: 2px solid var(--ok); }
+.idea p { margin: 0; }
+.idea .lbl { color: var(--ok); font-weight: 600; }
+.next { font-weight: 600; color: var(--fg); padding: 8px 0; }
+.next:hover { color: var(--accent); }
+.next small { font-family: var(--mono); color: var(--muted); font-weight: 400; margin-left: 6px; }
+.extra { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; font-size: 14px; }
+.extra pre { font-family: var(--mono); font-size: 13px; background: var(--code-bg); padding: 12px 14px; border-radius: 8px; overflow-x: auto; margin: 0; }
+.hint { color: var(--muted); }
+.empty { color: var(--muted); font-size: 14px; }
+
+/* reference */
+.drawer { position: fixed; inset: 0 0 0 auto; width: min(420px, 100%); background: var(--bg); border-left: 1px solid var(--faint); z-index: 20; display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px); }
+.dh { display: flex; gap: 18px; align-items: center; padding: 18px 22px; font-size: 14px; }
+.dh .sp { flex: 1; }
+.tabb { color: var(--muted); font-weight: 600; }
+.tabb.on { color: var(--fg); }
+.db { overflow-y: auto; padding: 0 22px 30px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; align-content: start; }
+.db input { width: 100%; padding: 10px 0; border: 0; border-bottom: 1px solid var(--faint); background: transparent; color: var(--fg); font: inherit; outline: none; margin-bottom: 8px; }
+.db h5 { margin: 14px 0 2px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.fn { padding: 6px 0; }
+.fn code { font-weight: 600; }
+.fn p { margin: 0; font-size: 13.5px; color: var(--muted); }
+
+canvas.fx { position: fixed; inset: 0; pointer-events: none; z-index: 30; }
+@media (max-width: 600px) { .page { padding-block: 24px 60px; gap: 32px; } }
+@media (prefers-reduced-motion: reduce) { .d.pop { animation: none; } .go, .run { transition: none; } }
+</style>
+
+<div id="app"></div>
+
+<aside class="drawer" id="drawer" hidden aria-label="Reference">
+  <div class="dh" id="dh"></div>
+  <div class="db" id="db"></div>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/ace.js"></script>
+<script>
+/*__QUESTIONS__*/
+</script>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const QBY = Object.fromEntries(QUESTIONS.concat(DRILLS).map(q => [q.id, q]));
+DRILLS.forEach(d => d.kind = 'drill');
+QUESTIONS.forEach(q => { q.kind = 'app'; q.uses = USES[q.id] || []; });
+const PTS = 10;
+
+/* storage */
+const KEY = 'm257-quiz-sim-v1';
+let store = { best: {}, tries: {}, code: {}, seeds: {}, exam: null, history: [], streak: 0 };
+try { const raw = localStorage.getItem(KEY); if (raw) store = Object.assign(store, JSON.parse(raw)); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} };
+const best = id => store.best[id] || 0;
+const tries = id => store.tries[id] || 0;
+const done = id => best(id) >= PTS;
+
+/* rng */
+function rng(seed) {
+  let a = seed >>> 0;
+  const f = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  return { f, int: (lo, hi) => lo + Math.floor(f() * (hi - lo + 1)), pick: arr => arr[Math.floor(f() * arr.length)] };
+}
+const newSeed = () => 1000 + Math.floor(Math.random() * 899000);
+function paramsFor(q, seed) { let p = q.params(rng(seed)); if (q.fix) p = q.fix(p); return p; }
+const seedOf = id => store.seeds[id] || (store.seeds[id] = newSeed());
+
+/* python */
+let worker = null, ready = false, pending = new Map(), runId = 0, timer = null, rtState = ['load', 'starting python'];
+function startWorker() {
+  ready = false; setRt('load', 'starting python');
+  try { worker = new Worker('worker.js'); } catch (e) { setRt('bad', 'python unavailable'); return; }
+  worker.onmessage = ev => {
+    const m = ev.data;
+    if (m.type === 'status') setRt('load', m.text.toLowerCase());
+    else if (m.type === 'ready') { ready = true; setRt('ok', 'python ready'); refreshRun(); }
+    else if (m.type === 'fatal') { setRt('bad', 'python failed to load'); console.error(m.text); }
+    else if (m.type === 'result') { const cb = pending.get(m.id); if (cb) { pending.delete(m.id); clearTimeout(timer); cb(m.result); } }
+  };
+  worker.onerror = e => { setRt('bad', 'python failed to load'); console.error(e.message); };
+}
+function setRt(k, t) { rtState = [k, t]; const el = $('#rt'); if (el) { el.className = 'rt ' + k; el.lastChild.textContent = t; } }
+const rtHTML = () => `<span class="rt ${rtState[0]}" id="rt"><i></i><span>${esc(rtState[1])}</span></span>`;
+function runPython(q, seed, code) {
+  return new Promise(resolve => {
+    const id = ++runId; pending.set(id, resolve);
+    worker.postMessage({ id, setup: q.setup, check: q.check, user: code, seed, params: paramsFor(q, seed), banned: q.banned || [] });
+    timer = setTimeout(() => {
+      if (!pending.has(id)) return;
+      pending.delete(id); worker.terminate();
+      resolve({ error: 'Stopped after 20 seconds. Probably a loop that never ends.', items: [], score: 0, stdout: '' });
+      startWorker();
+    }, 20000);
+  });
+}
+
+/* editor */
+let editor = null, fallback = null;
+const isDark = () => { const t = document.documentElement.getAttribute('data-theme'); return t ? t === 'dark' : !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches); };
+const aceTheme = () => isDark() ? 'ace/theme/tomorrow_night' : 'ace/theme/tomorrow';
+function mountEditor(el, value, onChange) {
+  editor = null; fallback = null;
+  if (window.ace) {
+    try {
+      ace.config.set('basePath', 'https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/');
+      editor = ace.edit(el, { mode: 'ace/mode/python', theme: aceTheme(), fontSize: 14, tabSize: 4, useSoftTabs: true, showPrintMargin: false, showGutter: false, highlightActiveLine: false, useWorker: false, fontFamily: '"Geist Mono", ui-monospace, Menlo, monospace' });
+      editor.renderer.setPadding(14); editor.renderer.setScrollMargin(12, 12);
+      editor.container.style.background = 'transparent';
+      editor.session.setValue(value);
+      editor.session.on('change', () => onChange(editor.getValue()));
+      editor.commands.addCommand({ name: 'run', bindKey: { win: 'Ctrl-Enter', mac: 'Cmd-Enter' }, exec: () => grade() });
+      return;
+    } catch (e) { editor = null; }
+  }
+  const ta = document.createElement('textarea');
+  ta.id = 'editorFallback'; ta.className = el.className; ta.spellcheck = false; ta.value = value;
+  ta.addEventListener('input', () => onChange(ta.value));
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Tab') { e.preventDefault(); ta.setRangeText('    ', ta.selectionStart, ta.selectionEnd, 'end'); onChange(ta.value); }
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); grade(); }
+  });
+  el.replaceWith(ta); fallback = ta;
+}
+const getCode = () => editor ? editor.getValue() : fallback ? fallback.value : '';
+function setCode(v) { if (editor) editor.session.setValue(v); else if (fallback) fallback.value = v; }
+const retheme = () => editor && editor.setTheme(aceTheme());
+if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', retheme);
+new MutationObserver(retheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+/* confetti */
+function burst(x, y) {
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const c = document.createElement('canvas'); c.className = 'fx';
+  const dpr = window.devicePixelRatio || 1; c.width = innerWidth * dpr; c.height = innerHeight * dpr; c.style.width = innerWidth + 'px'; c.style.height = innerHeight + 'px';
+  document.body.appendChild(c);
+  const g = c.getContext('2d'); g.scale(dpr, dpr);
+  const cs = getComputedStyle(document.documentElement);
+  const cols = [cs.getPropertyValue('--accent'), cs.getPropertyValue('--ok'), cs.getPropertyValue('--fg')].map(s => s.trim());
+  const ps = Array.from({ length: 36 }, (_, i) => { const a = Math.random() * Math.PI * 2, s = 3 + Math.random() * 6; return { x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 4, r: 2 + Math.random() * 3, c: cols[i % 3] }; });
+  let f = 0;
+  (function step() {
+    g.clearRect(0, 0, innerWidth, innerHeight);
+    ps.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.35; p.vx *= 0.98; g.globalAlpha = Math.max(0, 1 - f / 45); g.fillStyle = p.c; g.beginPath(); g.arc(p.x, p.y, p.r, 0, 7); g.fill(); });
+    if (++f < 45) requestAnimationFrame(step); else c.remove();
+  })();
+}
+
+/* state */
+let view = 'home', mode = 'drills', cur = 0, list = [];
+let last = null, showSol = false, showHint = false, busy = false, justPassed = false;
+const isMock = () => mode === 'mock';
+const LABEL = q => q.kind === 'drill' ? GROUPS[q.group] : LABS[q.lab];
+const dotCls = (b, t) => !t ? '' : b >= PTS ? 'full' : 'part';
+function nextUnsolved() {
+  const d = DRILLS.find(q => !done(q.id)); if (d) return ['drills', d.id];
+  const a = QUESTIONS.find(q => !done(q.id)); if (a) return ['apps', a.id];
+  return null;
+}
+
+/* home */
+function renderHome() {
+  view = 'home'; closeDrawer();
+  const dDone = DRILLS.filter(q => done(q.id)).length, aDone = QUESTIONS.filter(q => done(q.id)).length;
+  const nu = nextUnsolved();
+  const ex = store.exam && !store.exam.done;
+  const hist = (store.history || []).slice(-6);
+  const dots = (arr, m) => `<div class="dots">${arr.map(q => `<button type="button" class="d ${dotCls(best(q.id), tries(q.id))}" data-m="${m}" data-id="${q.id}" title="${esc(q.title)}" aria-label="${esc(q.title)}"></button>`).join('')}</div>`;
+  $('#app').innerHTML = `<main class="page">
+    <div class="top"><span>wed 10/28 · 6:15 pm · chem annex</span><span class="sp"></span>${rtHTML()}<button type="button" class="link" id="refBtn">reference</button></div>
+    <section class="hero">
+      <h1>python quiz 1<span>.</span></h1>
+      <p>Learn each move, then put moves together. Real NumPy grades every run.</p>
+    </section>
+    <div>${nu ? `<button type="button" class="go" id="go">${nu[0] === 'drills' ? 'Continue' : 'Next problem'} <small>${esc(QBY[nu[1]].title)}</small> →</button>` : `<button type="button" class="go" id="mockGo">Everything solved. Try a mock quiz →</button>`}</div>
+    <section class="tracks">
+      <div class="track">
+        <div class="track-h"><button type="button" data-open="drills">Moves</button><span class="n">${dDone}/${DRILLS.length}</span></div>
+        ${dots(DRILLS, 'drills')}
+      </div>
+      <div class="track">
+        <div class="track-h"><button type="button" data-open="apps">Problems</button><span class="n">${aDone}/${QUESTIONS.length}</span></div>
+        ${dots(QUESTIONS, 'apps')}
+      </div>
+      <div class="track">
+        <div class="track-h"><button type="button" id="mock">${ex ? 'Resume mock quiz' : 'Mock quiz'}</button><span class="n">4 problems · no hints</span></div>
+        ${hist.length ? `<div class="past">${hist.map(h => `${h.score}/${h.max}`).join('  ·  ')}</div>` : ''}
+      </div>
+    </section>
+  </main>`;
+  if ($('#go')) $('#go').onclick = () => openList(nu[0], nu[1]);
+  if ($('#mockGo')) $('#mockGo').onclick = startExam;
+  $('#mock').onclick = () => ex ? openExam() : startExam();
+  document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => { const m = b.dataset.open; const src = m === 'drills' ? DRILLS : QUESTIONS; const f = src.find(q => !done(q.id)) || src[0]; openList(m, f.id); });
+  document.querySelectorAll('.d').forEach(b => b.onclick = () => openList(b.dataset.m, b.dataset.id));
+  $('#refBtn').onclick = toggleDrawer;
+}
+
+function openList(m, id) {
+  mode = m;
+  list = (m === 'drills' ? DRILLS : QUESTIONS).map(q => ({ id: q.id, seed: seedOf(q.id) }));
+  save();
+  cur = Math.max(0, list.findIndex(x => x.id === id));
+  last = null; showSol = showHint = justPassed = false;
+  renderWork(); window.scrollTo({ top: 0 });
+}
+
+/* mock */
+function startExam() {
+  const labs = [1, 2, 3, 4, 5, 6].sort(() => Math.random() - 0.5).slice(0, 4).sort();
+  const qs = labs.map(l => { const pool = QUESTIONS.filter(q => q.lab === l); return { id: pool[Math.floor(Math.random() * pool.length)].id, seed: newSeed() }; });
+  store.exam = { qs, done: false, best: {}, tries: {}, code: {}, last: {} };
+  save(); openExam();
+}
+function openExam() { mode = 'mock'; list = store.exam.qs; cur = 0; last = store.exam.last[0] || null; showSol = showHint = justPassed = false; renderWork(); window.scrollTo({ top: 0 }); }
+function finishExam() {
+  const ex = store.exam; if (!ex || ex.done) return;
+  ex.done = true;
+  store.history = (store.history || []).concat([{ at: Date.now(), score: ex.qs.reduce((s, _, i) => s + (ex.best[i] || 0), 0), max: ex.qs.length * PTS }]).slice(-20);
+  save(); renderSummary();
+}
+
+/* work */
+const loadCode = i => { const q = QBY[list[i].id]; const c = isMock() ? store.exam.code[i] : store.code[q.id]; return c != null ? c : q.starter; };
+function storeCode(v) { if (isMock()) { if (!store.exam.done) store.exam.code[cur] = v; } else store.code[list[cur].id] = v; clearTimeout(storeCode.t); storeCode.t = setTimeout(save, 400); }
+const bestAt = i => isMock() ? (store.exam.best[i] || 0) : best(list[i].id);
+const triesAt = i => isMock() ? (store.exam.tries[i] || 0) : tries(list[i].id);
+
+function renderWork() {
+  view = 'work';
+  const x = list[cur], q = QBY[x.id], p = paramsFor(q, x.seed), learn = !isMock();
+  const passed = learn && last && last.score >= PTS;
+  const vars = rows => rows.map(r => `<span class="v" title="${esc(r[2])}"><code>${esc(r[0])}</code><span>${esc(r[1])}</span></span>`).join('');
+  $('#app').innerHTML = `<main class="page work">
+    <div class="bar">
+      <button type="button" class="link" id="back">← ${isMock() ? 'leave' : 'home'}</button>
+      <span class="sp"></span>
+      ${learn ? `<span class="streak">streak <b>${store.streak || 0}</b></span>` : `<button type="button" class="link" id="finish">finish quiz</button>`}
+      ${rtHTML()}
+      <button type="button" class="link" id="refBtn">reference</button>
+    </div>
+    <div class="dots navdots" aria-label="Items">${list.map((it, i) => `<button type="button" class="d ${dotCls(bestAt(i), triesAt(i))} ${i === cur ? 'cur' : ''} ${i === cur && justPassed ? 'pop' : ''}" data-i="${i}" title="${esc(QBY[it.id].title)}" aria-label="${esc(QBY[it.id].title)}"></button>`).join('')}</div>
+    <section class="q">
+      <div class="eyebrow">${isMock() ? `problem ${cur + 1} of ${list.length}` : esc(LABEL(q).toLowerCase())}${q.kind === 'app' && learn ? ` · uses ${q.uses.map(u => `<button type="button" class="link" data-drill="${u}" style="font-size:13px;text-decoration:underline;text-underline-offset:3px">${esc(QBY[u].title.toLowerCase())}</button>`).join(', ')}` : ''}</div>
+      <h1>${esc(q.title)}</h1>
+    </section>
+    <section class="prompt">${q.prompt(p)}</section>
+    <div class="io">
+      ${q.given.length ? `<span class="k">given</span><div class="vs">${vars(q.given)}</div>` : ''}
+      <span class="k">define</span><div class="vs">${vars(q.defines)}</div>
+    </div>
+    <div class="ed"><div id="editor" class="${q.kind === 'drill' ? 'short' : ''}"></div></div>
+    <div class="row">
+      <button type="button" class="run" id="run">run <small>⌘↵</small></button>
+      ${learn && q.hint ? `<button type="button" class="link" id="hintBtn">hint</button>` : ''}
+      ${learn ? `<button type="button" class="link" id="solBtn" ${triesAt(cur) ? '' : 'disabled title="Run once first"'}>solution</button><button type="button" class="link" id="varBtn">new numbers</button>` : ''}
+      <button type="button" class="link" id="resetBtn">reset</button>
+    </div>
+    <section class="res" id="res">${resultHTML(last)}</section>
+    ${passed ? `<section class="idea"><div><div class="lbl">${q.kind === 'drill' ? 'remember' : 'solved'}</div><p>${esc(q.kind === 'drill' ? q.idea : 'Run new numbers once more to be sure, or keep going.')}</p></div><button type="button" class="next" id="nextHot">${cur < list.length - 1 ? 'next' : 'home'} →<small>↵</small></button></section>` : ''}
+    ${showHint && learn ? `<section class="extra"><div class="hint">${esc(q.hint)}</div></section>` : ''}
+    ${showSol && learn ? `<section class="extra"><pre>${esc(q.solution(p))}</pre><div><button type="button" class="link" id="useSol">use this</button></div></section>` : ''}
+  </main>`;
+  mountEditor($('#editor'), loadCode(cur), storeCode);
+  if (isMock() && store.exam.done && editor) editor.setReadOnly(true);
+  $('#back').onclick = renderHome;
+  $('#run').onclick = grade;
+  $('#resetBtn').onclick = resetConfirm;
+  $('#refBtn').onclick = toggleDrawer;
+  document.querySelectorAll('.navdots .d').forEach(b => b.onclick = () => go(Number(b.dataset.i)));
+  document.querySelectorAll('[data-drill]').forEach(b => b.onclick = () => openList('drills', b.dataset.drill));
+  if ($('#finish')) $('#finish').onclick = finishConfirm;
+  if ($('#hintBtn')) $('#hintBtn').onclick = () => { showHint = !showHint; renderKeep(); };
+  if ($('#solBtn')) $('#solBtn').onclick = () => { showSol = !showSol; renderKeep(); };
+  if ($('#varBtn')) $('#varBtn').onclick = () => { x.seed = store.seeds[x.id] = newSeed(); save(); last = null; showSol = justPassed = false; renderKeep(); };
+  if ($('#useSol')) $('#useSol').onclick = () => { const v = q.solution(p); setCode(v); storeCode(v); };
+  if ($('#nextHot')) { $('#nextHot').onclick = () => cur < list.length - 1 ? go(cur + 1) : renderHome(); $('#nextHot').focus({ preventScroll: true }); }
+  justPassed = false;
+  refreshRun();
+}
+function renderKeep() { const k = getCode(); renderWork(); if (getCode() !== k) setCode(k); }
+function go(i) {
+  if (i < 0 || i >= list.length) return;
+  cur = i; showSol = showHint = justPassed = false;
+  last = isMock() ? (store.exam.last[i] || null) : null;
+  renderWork(); window.scrollTo({ top: 0 });
+}
+function refreshRun() {
+  const b = $('#run'); if (!b) return;
+  const locked = isMock() && store.exam && store.exam.done;
+  b.disabled = !ready || busy || locked;
+  b.firstChild.textContent = locked ? 'finished ' : busy ? 'running… ' : ready ? 'run ' : 'loading python… ';
+}
+function resetConfirm() {
+  const b = $('#resetBtn');
+  if (b.dataset.armed) { const v = QBY[list[cur].id].starter; setCode(v); storeCode(v); delete b.dataset.armed; b.textContent = 'reset'; return; }
+  b.dataset.armed = '1'; b.textContent = 'sure? click again';
+  setTimeout(() => { if (b.isConnected && b.dataset.armed) { delete b.dataset.armed; b.textContent = 'reset'; } }, 3000);
+}
+function finishConfirm() {
+  const b = $('#finish');
+  if (b.dataset.armed) return finishExam();
+  b.dataset.armed = '1'; b.textContent = 'click again to finish';
+  setTimeout(() => { if (b.isConnected && b.dataset.armed) { delete b.dataset.armed; b.textContent = 'finish quiz'; } }, 3000);
+}
+
+async function grade() {
+  if (!ready || busy || view !== 'work' || (isMock() && store.exam.done)) return;
+  busy = true; refreshRun();
+  const i = cur, x = list[i], q = QBY[x.id], code = getCode();
+  storeCode(code);
+  const res = await runPython(q, x.seed, code);
+  busy = false;
+  const wasDone = bestAt(i) >= PTS;
+  if (isMock()) {
+    store.exam.tries[i] = (store.exam.tries[i] || 0) + 1;
+    store.exam.best[i] = Math.max(store.exam.best[i] || 0, res.score || 0);
+    store.exam.last[i] = res;
+  } else {
+    store.tries[q.id] = tries(q.id) + 1;
+    store.best[q.id] = Math.max(best(q.id), res.score || 0);
+    store.streak = res.score >= PTS ? (store.streak || 0) + 1 : 0;
+  }
+  save();
+  if (view === 'work' && cur === i) {
+    last = res;
+    justPassed = res.score >= PTS && !wasDone;
+    renderKeep();
+    if (res.score >= PTS) { const r = $('#run').getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2); }
+    const t = $('.idea') || $('#res'); if (t) t.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  } else refreshRun();
+}
+function resultHTML(r) {
+  if (!r) return '';
+  const s = r.score || 0, ok = s >= PTS;
+  const items = r.items || [];
+  const bad = items.filter(i => !i.ok), good = items.filter(i => i.ok);
+  return `<div class="verdict ${ok ? 'ok' : 'no'}">${ok ? 'correct' : r.error ? 'error' : 'not yet'}<small>${s}/${PTS}</small></div>
+    ${r.error ? `<pre class="out err">${esc(r.error)}</pre>` : ''}
+    ${items.length && !ok ? `<ul class="fails">${bad.map(i => `<li>${esc(i.msg)}</li>`).join('')}${good.map(i => `<li class="ok">${esc(i.msg)}</li>`).join('')}</ul>` : ''}
+    ${r.trace ? `<pre class="out err">${esc(r.trace)}</pre>` : ''}
+    ${r.stdout ? `<div><div class="lbl">printed</div><pre class="out">${esc(r.stdout)}</pre></div>` : ''}`;
+}
+
+/* summary */
+function renderSummary() {
+  view = 'summary';
+  const ex = store.exam, total = ex.qs.reduce((s, _, i) => s + (ex.best[i] || 0), 0), max = ex.qs.length * PTS;
+  const weak = ex.qs.map((x, i) => (ex.best[i] || 0) < PTS ? QBY[x.id] : null).filter(Boolean);
+  $('#app').innerHTML = `<main class="page">
+    <div class="top"><button type="button" class="link" id="back">← home</button></div>
+    <section class="hero"><h1>${total}<span>/</span>${max}</h1><p>${total === max ? 'Clean sweep.' : 'Drill these next: ' + [...new Set(weak.flatMap(q => q.uses))].map(u => esc(QBY[u].title.toLowerCase())).join(', ') + '.'}</p></section>
+    <section class="tracks">${ex.qs.map((x, i) => `<div class="track-h"><span class="d ${dotCls(ex.best[i] || 0, 1)}"></span><span>${esc(QBY[x.id].title)}</span><span class="sp"></span><span class="n">${ex.best[i] || 0}/${PTS}</span></div>`).join('')}</section>
+    <div class="row"><button type="button" class="go" id="review">review with solutions →</button><button type="button" class="link" id="again">new mock quiz</button></div>
+  </main>`;
+  $('#back').onclick = renderHome;
+  $('#again').onclick = startExam;
+  $('#review').onclick = () => {
+    mode = 'apps'; list = ex.qs.map(x => ({ id: x.id, seed: x.seed }));
+    ex.qs.forEach((x, i) => { if (ex.code[i] != null) store.code[x.id] = ex.code[i]; });
+    save(); cur = 0; last = ex.last[0] || null; showSol = showHint = false; renderWork();
+  };
+}
+
+/* reference */
+const DOC = [
+  ['Typecasting', [['float(x)', 'Number or numeric string to float.'], ['int(x)', 'Number or numeric string to int. Drops the decimals.']]],
+  ['NumPy', [
+    ['np.eye(n)', 'Identity. np.eye(n, k=1) shifts the ones one diagonal up.'], ['np.zeros(shape)', 'np.zeros(5) or np.zeros((3, 4)).'],
+    ['np.ones_like(a)', 'Ones with the shape of a.'], ['np.diag(v)', 'Matrix with v on the diagonal, or the diagonal of a matrix.'],
+    ['np.append(a, values)', 'New array with values added at the end.'], ['np.vstack([a, b])', 'Arrays as rows of a 2d array.'],
+    ['np.sum(a, axis=None)', 'axis=0 sums each column, axis=1 sums each row.'], ['np.average(a, axis=None)', 'Mean, optionally along an axis.'],
+    ['np.argmin(a)', 'Index of the smallest entry.'], ['np.where(cond)', 'Indices where cond is True.'],
+    ['np.count_nonzero(a)', 'Number of nonzero or True entries.'], ['np.arange(start, stop, step)', 'Evenly spaced, stop excluded.'],
+    ['np.clip(a, lo, hi)', 'Limit entries to [lo, hi].'], ['np.linalg.eig(A)', '(eigenvalues, eigenvectors as columns).'],
+    ['np.linalg.lstsq(A, b)', 'Least squares. Solution is item 0.'], ['np.linalg.svd(A)', 'U, S, Vt with A = U diag(S) Vt.'],
+    ['np.linalg.matrix_power(A, k)', 'A times itself k times.'], ['np.linalg.norm(x)', 'Length of a vector.'],
+    ['np.linalg.solve(A, b)', 'Solves A x = b. Sometimes blocked.'], ['np.linalg.inv(A)', 'Inverse.']]],
+  ['Random', [['random.randint(a, b)', 'Integer in [a, b].'], ['random.random()', 'Float in [0, 1).'], ['random.sample(seq, k)', 'k distinct items.']]],
+  ['Files', [['np.loadtxt(fname)', 'Text file to array.'], ['pd.read_csv(fname)', 'CSV to DataFrame.']]],
+  ['Other', [['scipy.linalg.solve_triangular(A, b, lower=False)', 'Triangular solve. lower=True for lower.'], ['scipy.linalg.lu(A)', 'P, L, U with A = P L U.'], ['math.ceil(x)', 'Round up.']]]
+];
+let refTab = 'doc', refQ = '';
+function toggleDrawer() { const d = $('#drawer'); d.hidden = !d.hidden; if (!d.hidden) renderDrawer(); }
+function closeDrawer() { $('#drawer').hidden = true; }
+function renderDrawer() {
+  const lock = view === 'work' && isMock() && store.exam && !store.exam.done;
+  if (lock) refTab = 'doc';
+  $('#dh').innerHTML = `<button type="button" class="tabb ${refTab === 'doc' ? 'on' : ''}" data-t="doc">course doc</button>${lock ? '' : `<button type="button" class="tabb ${refTab === 'pat' ? 'on' : ''}" data-t="pat">patterns</button>`}<span class="sp"></span><button type="button" class="link" id="dClose">close</button>`;
+  document.querySelectorAll('.tabb').forEach(t => t.onclick = () => { refTab = t.dataset.t; renderDrawer(); });
+  $('#dClose').onclick = closeDrawer;
+  const data = refTab === 'doc' ? DOC : Object.keys(GROUPS).map(g => [GROUPS[g], DRILLS.filter(d => d.group === g).map(d => [d.title, d.idea])]);
+  const v = refQ.trim().toLowerCase();
+  const html = data.map(([h, fs]) => { const hits = fs.filter(f => !v || (f[0] + ' ' + f[1]).toLowerCase().includes(v)); return hits.length ? `<h5>${esc(h)}</h5>${hits.map(f => `<div class="fn"><code>${esc(f[0])}</code><p>${esc(f[1])}</p></div>`).join('')}` : ''; }).join('');
+  $('#db').innerHTML = `<input id="refQ" type="search" placeholder="search" value="${esc(refQ)}" aria-label="Search the reference">${html || '<p class="empty">No matches.</p>'}`;
+  const s = $('#refQ');
+  s.oninput = () => { refQ = s.value; const pos = s.selectionStart; renderDrawer(); const n = $('#refQ'); n.focus(); n.setSelectionRange(pos, pos); };
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+if (store.exam && store.exam.dur !== undefined) { delete store.exam.dur; delete store.exam.start; }
+startWorker();
+renderHome();
+})();
+</script>

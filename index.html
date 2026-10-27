@@ -1,0 +1,2258 @@
+<meta charset="utf-8">
+<title>257 Quiz Simulator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: one narrow column. Progress is a row of dots, one per item. Everything else is text. */
+:root {
+  --bg: #ffffff;
+  --fg: #111214;
+  --muted: #8a8d94;
+  --faint: #ececee;
+  --accent: #ff5f05;
+  --ok: #12a150;
+  --bad: #e5484d;
+  --code-bg: #f7f7f8;
+  --sans: "Geist", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #0d0d0e; --fg: #f1f1f2; --muted: #75787f; --faint: #232326; --accent: #ff7a2e; --ok: #3ccb7f; --bad: #ff6b70; --code-bg: #161618; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #0d0d0e; --fg: #f1f1f2; --muted: #75787f; --faint: #232326; --accent: #ff7a2e; --ok: #3ccb7f; --bad: #ff6b70; --code-bg: #161618; color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+code { font-family: var(--mono); font-size: 0.9em; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+.page { max-width: 720px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); padding-block: 40px 80px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; }
+.top { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--muted); }
+.top .sp { flex: 1; }
+.rt { display: inline-flex; align-items: center; gap: 6px; }
+.rt i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+.rt.ok i { background: var(--ok); } .rt.bad i { background: var(--bad); }
+.link { color: var(--muted); font-size: 14px; }
+.link:hover:not(:disabled) { color: var(--fg); }
+.link:disabled { opacity: 0.4; cursor: default; }
+
+/* home */
+.hero h1 { font-size: clamp(40px, 8vw, 64px); line-height: 1; letter-spacing: -0.04em; font-weight: 700; margin: 0 0 12px; }
+.hero h1 span { color: var(--accent); }
+.hero p { margin: 0; color: var(--muted); }
+.go { display: inline-flex; align-items: center; gap: 10px; background: var(--fg); color: var(--bg); padding: 14px 22px; border-radius: 999px; font-weight: 600; font-size: 16px; transition: transform 0.15s; }
+.go:hover { transform: translateX(3px); }
+.go small { opacity: 0.6; font-weight: 400; }
+.tracks { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
+.track { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.track-h { display: flex; align-items: baseline; gap: 12px; }
+.track-h button { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+.track-h button:hover { color: var(--accent); }
+.track-h .n { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.track-h .sp { flex: 1; }
+.track p { margin: 0; color: var(--muted); font-size: 14px; }
+.dots { display: flex; flex-wrap: wrap; gap: 7px; }
+.d { width: 14px; height: 14px; border-radius: 50%; background: var(--faint); transition: transform 0.15s, background 0.2s; }
+.d:hover { transform: scale(1.35); }
+.d.part { background: var(--accent); opacity: 0.45; }
+.d.full { background: var(--ok); }
+.d.cur { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--fg); }
+.d.pop { animation: pop 0.5s ease-out; }
+@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.8); } 100% { transform: scale(1); } }
+.past { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+
+/* work */
+.page.work { gap: 24px; }
+.bar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.bar .rt span { display: none; }
+.navdots { margin-top: -8px; }
+.bar .sp { flex: 1; }
+.streak { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.streak b { color: var(--accent); }
+.q h1 { font-size: clamp(28px, 5vw, 38px); line-height: 1.1; letter-spacing: -0.03em; font-weight: 700; margin: 4px 0 0; text-wrap: balance; }
+.eyebrow { font-size: 13px; color: var(--muted); }
+.prompt { font-size: 16px; }
+.prompt p, .prompt ul, .prompt ol { margin: 0 0 12px; }
+.prompt li + li { margin-top: 4px; }
+.prompt pre { font-family: var(--mono); font-size: 14px; background: var(--code-bg); padding: 12px 14px; border-radius: 8px; overflow-x: auto; margin: 0 0 12px; }
+.prompt code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+.prompt pre code { background: none; padding: 0; }
+.prompt .ban { color: var(--accent); }
+.io { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 6px 12px; font-size: 14px; align-items: baseline; }
+.io .k { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.io .vs { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.v code { font-weight: 600; background: none; padding: 0; }
+.v span { color: var(--muted); font-size: 13px; margin-left: 5px; }
+.ed { border-radius: 10px; overflow: hidden; background: var(--code-bg); }
+#editor, #editorFallback { width: 100%; height: 260px; font-family: var(--mono); font-size: 14px; }
+#editor.short, #editorFallback.short { height: 180px; }
+#editorFallback { border: 0; padding: 14px; resize: vertical; background: var(--code-bg); color: var(--fg); display: block; outline: none; }
+.row { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.run { background: var(--accent); color: #fff; padding: 11px 22px; border-radius: 999px; font-weight: 600; display: inline-flex; gap: 10px; align-items: baseline; transition: transform 0.12s; }
+.run:hover:not(:disabled) { transform: translateY(-1px); }
+.run:active:not(:disabled) { transform: translateY(1px); }
+.run:disabled { opacity: 0.45; cursor: default; }
+.run small { font-family: var(--mono); font-size: 12px; opacity: 0.75; font-weight: 400; }
+.res:empty { display: none; }
+.res { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.verdict { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; display: flex; align-items: baseline; gap: 12px; }
+.verdict.ok { color: var(--ok); } .verdict.no { color: var(--bad); }
+.verdict small { font-family: var(--mono); font-size: 14px; color: var(--muted); font-weight: 400; letter-spacing: 0; }
+.fails { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.fails li::before { content: "✗  "; color: var(--bad); font-weight: 700; }
+.fails li.ok::before { content: "✓  "; color: var(--ok); }
+.fails li.ok { color: var(--muted); }
+pre.out { font-family: var(--mono); font-size: 13px; background: var(--code-bg); padding: 12px 14px; border-radius: 8px; margin: 0; white-space: pre-wrap; word-break: break-word; max-height: 240px; overflow: auto; }
+pre.out.err { color: var(--bad); }
+.lbl { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.idea { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 16px 0; border-top: 2px solid var(--ok); }
+.idea p { margin: 0; }
+.idea .lbl { color: var(--ok); font-weight: 600; }
+.next { font-weight: 600; color: var(--fg); padding: 8px 0; }
+.next:hover { color: var(--accent); }
+.next small { font-family: var(--mono); color: var(--muted); font-weight: 400; margin-left: 6px; }
+.extra { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; font-size: 14px; }
+.extra pre { font-family: var(--mono); font-size: 13px; background: var(--code-bg); padding: 12px 14px; border-radius: 8px; overflow-x: auto; margin: 0; }
+.hint { color: var(--muted); }
+.empty { color: var(--muted); font-size: 14px; }
+
+/* reference */
+.drawer { position: fixed; inset: 0 0 0 auto; width: min(420px, 100%); background: var(--bg); border-left: 1px solid var(--faint); z-index: 20; display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px); }
+.dh { display: flex; gap: 18px; align-items: center; padding: 18px 22px; font-size: 14px; }
+.dh .sp { flex: 1; }
+.tabb { color: var(--muted); font-weight: 600; }
+.tabb.on { color: var(--fg); }
+.db { overflow-y: auto; padding: 0 22px 30px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; align-content: start; }
+.db input { width: 100%; padding: 10px 0; border: 0; border-bottom: 1px solid var(--faint); background: transparent; color: var(--fg); font: inherit; outline: none; margin-bottom: 8px; }
+.db h5 { margin: 14px 0 2px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.fn { padding: 6px 0; }
+.fn code { font-weight: 600; }
+.fn p { margin: 0; font-size: 13.5px; color: var(--muted); }
+
+canvas.fx { position: fixed; inset: 0; pointer-events: none; z-index: 30; }
+@media (max-width: 600px) { .page { padding-block: 24px 60px; gap: 32px; } }
+@media (prefers-reduced-motion: reduce) { .d.pop { animation: none; } .go, .run { transition: none; } }
+</style>
+
+<div id="app"></div>
+
+<aside class="drawer" id="drawer" hidden aria-label="Reference">
+  <div class="dh" id="dh"></div>
+  <div class="db" id="db"></div>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/ace.js"></script>
+<script>
+const py = String.raw;
+
+const LABS = {
+  1: 'Lab 1 · Python basics',
+  2: 'Lab 2 · Vectors',
+  3: 'Lab 3 · Matrix operations',
+  4: 'Lab 4 · Linear systems',
+  5: 'Lab 5 · Graphs',
+  6: 'Lab 6 · DCT & coordinates'
+};
+
+const QUESTIONS = [
+/* ---------------- LAB 1 ---------------- */
+{
+  id: 'l1-stats', lab: 1, title: 'Count and reverse a list',
+  params: r => ({ d: r.pick([3, 4, 5]) }),
+  prompt: p => `
+<p>Write a function <code>stats(A, n)</code>. <code>A</code> is a Python list of integers and <code>n</code> is a positive integer.</p>
+<p>It returns a tuple <code>(count, last)</code> where</p>
+<ul>
+<li><code>count</code> is the number of entries of <code>A</code> that are divisible by ${p.d}</li>
+<li><code>last</code> is a list with the last <code>n</code> entries of <code>A</code>, in reverse order</li>
+</ul>
+<p>Example with <code>A = [6, 1, ${p.d * 3}, 7, 2]</code> and <code>n = 3</code>:</p>
+<pre>stats(A, 3)   # returns (${(6 % p.d === 0 ? 1 : 0) + 1}, [2, 7, ${p.d * 3}])</pre>
+<p>We test your function on other lists, so do not hard-code results.</p>`,
+  given: [['A', 'list', 'example list (for debugging)'], ['n', 'int', 'example n']],
+  defines: [['stats', 'function', 'returns (count, last)']],
+  starter: py`def stats(A, n):
+    # write your code here
+    pass
+`,
+  setup: py`d = PARAMS['d']
+A = [int(x) for x in np.random.randint(-20, 40, size=np.random.randint(8, 14))]
+n = int(np.random.randint(2, 6))
+`,
+  check: py`d = S['d']
+def ref(A, n):
+    return (sum(1 for a in A if a % d == 0), A[::-1][:n])
+cases = [(S['A'], S['n'])]
+for k, m in [(10, 3), (7, 1), (15, 7), (5, 5), (12, 4)]:
+    cases.append(([int(x) for x in np.random.randint(-50, 50, size=k)], int(m)))
+G.expect_fn('stats', cases, ref, 10)
+`,
+  hint: 'Use the modulo operator a % d == 0 inside a loop. Slicing A[::-1] reverses a list.',
+  solution: p => py`def stats(A, n):
+    count = 0
+    for a in A:
+        if a % ${p.d} == 0:
+            count += 1
+    last = A[::-1][:n]
+    return (count, last)
+`
+},
+{
+  id: 'l1-runmax', lab: 1, title: 'Running maximum',
+  params: r => ({}),
+  prompt: p => `
+<p>Write a function <code>running_max(A)</code> that takes a non-empty list of numbers and returns a list <code>R</code> of the same length where <code>R[i]</code> is the largest value among <code>A[0], ..., A[i]</code>.</p>
+<pre>running_max([3, 1, 4, 1, 5, 2])   # returns [3, 3, 4, 4, 5, 5]</pre>
+<p>Return a Python list.</p>`,
+  given: [['A', 'list', 'example list (for debugging)']],
+  defines: [['running_max', 'function', 'returns the running maximum as a list']],
+  starter: py`def running_max(A):
+    # write your code here
+    pass
+`,
+  setup: py`A = [int(x) for x in np.random.randint(-30, 30, size=10)]
+`,
+  check: py`def ref(A):
+    out = []
+    m = None
+    for a in A:
+        m = a if m is None else max(m, a)
+        out.append(m)
+    return out
+cases = [(S['A'],), ([5],), ([9, 8, 7, 6],), ([1, 2, 3, 4],)]
+for k in [6, 11, 20]:
+    cases.append(([float(x) for x in np.round(np.random.randn(k) * 10, 2)],))
+G.expect_fn('running_max', cases, ref, 10)
+`,
+  hint: 'Keep a variable with the biggest value seen so far. Append it to the output list on every iteration.',
+  solution: p => py`def running_max(A):
+    R = []
+    best = A[0]
+    for a in A:
+        if a > best:
+            best = a
+        R.append(best)
+    return R
+`
+},
+
+/* ---------------- LAB 2 ---------------- */
+{
+  id: 'l2-missing', lab: 2, title: 'Find the missing vector',
+  params: r => ({}),
+  prompt: p => `
+<p>Three vectors were combined into</p>
+<pre>z = alpha*u + beta*v + gamma*w</pre>
+<p>You are given <code>v</code>, <code>w</code>, the result <code>z</code>, and the coefficients <code>alpha</code>, <code>beta</code>, <code>gamma</code>. The vector <code>u</code> was lost.</p>
+<p>Compute the missing vector and store it in <code>u</code>.</p>`,
+  given: [['v', '1d numpy array', 'vector v'], ['w', '1d numpy array', 'vector w'], ['z', '1d numpy array', 'vector z'], ['alpha', 'float', 'coefficient of u'], ['beta', 'float', 'coefficient of v'], ['gamma', 'float', 'coefficient of w']],
+  defines: [['u', '1d numpy array', 'the missing vector']],
+  starter: py`import numpy as np
+
+# Write your code to calculate u below this line
+u = ...
+`,
+  setup: py`u0 = np.random.randint(-9, 10, size=6).astype(float)
+v = np.random.randint(-9, 10, size=6).astype(float)
+w = np.random.randint(-9, 10, size=6).astype(float)
+alpha, beta, gamma = [float(c) for c in np.random.choice([-3, -2, -1.5, -0.5, 0.5, 1.5, 2, 3], 3)]
+z = alpha * u0 + beta * v + gamma * w
+del u0
+`,
+  check: py`G.expect('u', (S['z'] - S['beta'] * S['v'] - S['gamma'] * S['w']) / S['alpha'], 10)
+`,
+  hint: 'Move the known terms to the other side, then divide by alpha. NumPy arrays support +, -, * and / elementwise.',
+  solution: p => py`import numpy as np
+
+u = (z - beta * v - gamma * w) / alpha
+`
+},
+{
+  id: 'l2-portfolio', lab: 2, title: 'Portfolio value over time',
+  params: r => ({}),
+  prompt: p => `
+<p>The 2d array <code>P</code> holds daily stock prices for three companies. Row <code>t</code> holds the three prices on day <code>t</code>, so <code>P</code> has shape <code>(T, 3)</code>.</p>
+<p>The tuple <code>shares</code> holds how many shares you own of each company (same order as the columns of <code>P</code>).</p>
+<p>Compute:</p>
+<ul>
+<li><code>values</code>: a 1d array of length <code>T</code> with the total value of your shares on each day</li>
+<li><code>best_day</code>: the index of the day with the highest value (an <code>int</code>)</li>
+<li><code>gain</code>: the value on the last day minus the value on the first day</li>
+</ul>`,
+  given: [['P', '2d numpy array', 'prices, shape (T, 3)'], ['shares', 'tuple', 'number of shares of each company']],
+  defines: [['values', '1d numpy array', 'value on each day'], ['best_day', 'int', 'day with the highest value'], ['gain', 'float', 'last value minus first value']],
+  starter: py`import numpy as np
+
+values = ...
+best_day = ...
+gain = ...
+`,
+  setup: py`T = int(np.random.randint(30, 60))
+P = np.round(np.cumsum(np.random.randn(T, 3) * 2, axis=0) + np.array([120.0, 45.0, 80.0]), 2)
+shares = tuple(int(s) for s in np.random.randint(5, 40, size=3))
+del T
+`,
+  check: py`vals = S['P'] @ np.array(S['shares'], dtype=float)
+G.expect('values', vals, 4)
+G.expect('best_day', int(np.argmax(vals)), 3)
+G.expect('gain', vals[-1] - vals[0], 3)
+`,
+  hint: 'A matrix-vector product P @ np.array(shares) gives every day at once. np.argmax returns the index of the largest entry.',
+  solution: p => py`import numpy as np
+
+values = P @ np.array(shares)
+best_day = int(np.argmax(values))
+gain = values[-1] - values[0]
+`
+},
+{
+  id: 'l2-angle', lab: 2, title: 'Unit vectors and angles',
+  params: r => ({}),
+  prompt: p => `
+<p>Write two functions that take 1d numpy arrays:</p>
+<ul>
+<li><code>unit(x)</code> returns the unit vector pointing in the same direction as <code>x</code></li>
+<li><code>angle_deg(x, y)</code> returns the angle between <code>x</code> and <code>y</code> <b>in degrees</b>, as a float between 0 and 180</li>
+</ul>
+<p>Recall <code>cos(θ) = (x · y) / (‖x‖ ‖y‖)</code>. Rounding can push this ratio slightly past 1 for parallel vectors, so clip it to [-1, 1] before taking the arccos.</p>`,
+  given: [['x', '1d numpy array', 'example vector'], ['y', '1d numpy array', 'example vector']],
+  defines: [['unit', 'function', 'unit vector of x'], ['angle_deg', 'function', 'angle between x and y in degrees']],
+  starter: py`import numpy as np
+
+def unit(x):
+    pass
+
+def angle_deg(x, y):
+    pass
+`,
+  setup: py`x = np.random.randint(-5, 6, size=4).astype(float)
+y = np.random.randint(-5, 6, size=4).astype(float)
+x[0] = 3.0
+y[1] = -2.0
+`,
+  check: py`def ref_unit(x):
+    return x / np.linalg.norm(x)
+def ref_ang(x, y):
+    c = np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
+    return float(np.degrees(np.arccos(np.clip(c, -1, 1))))
+cases1 = [(S['x'],)] + [(np.random.randn(k) * 4 + 0.1,) for k in [2, 3, 5, 6]]
+G.expect_fn('unit', cases1, ref_unit, 4)
+cases2 = [(S['x'], S['y']), (np.array([1.0, 0.0]), np.array([0.0, 2.0])), (np.array([1.0, 2.0, 3.0]), np.array([2.0, 4.0, 6.0])), (np.array([1.0, 1.0]), np.array([-1.0, -1.0]))]
+cases2 += [(np.random.randn(k), np.random.randn(k)) for k in [3, 4, 6]]
+G.expect_fn('angle_deg', cases2, ref_ang, 6, tol=1e-5)
+`,
+  hint: 'np.linalg.norm(x) gives the length. np.dot(x, y) or x @ y gives the dot product. np.arccos returns radians, and np.degrees converts them.',
+  solution: p => py`import numpy as np
+
+def unit(x):
+    return x / np.linalg.norm(x)
+
+def angle_deg(x, y):
+    c = np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
+    c = np.clip(c, -1, 1)
+    return float(np.degrees(np.arccos(c)))
+`
+},
+
+/* ---------------- LAB 3 ---------------- */
+{
+  id: 'l3-reflect', lab: 3, title: 'Reflect and scale points',
+  params: r => ({ sx: r.pick([2, 3, 0.5]), sy: r.pick([0.5, 2, 1.5]) }),
+  prompt: p => `
+<p>The variable <code>image</code> is a <code>2 × N</code> array. Each column is a point <code>(x, y)</code>.</p>
+<p><b>Reflection</b> across the line <code>y = x</code>:</p>
+<pre>x' = y
+y' = x</pre>
+<p><b>Scaling</b>:</p>
+<pre>x' = ${p.sx} x
+y' = ${p.sy} y</pre>
+<p>Build both 2 × 2 matrices and compute:</p>
+<ul>
+<li><code>reflected</code>: the image after the reflection</li>
+<li><code>scaled</code>: the image after the scaling</li>
+<li><code>reflect_then_scale</code>: the image reflected first, then scaled</li>
+</ul>`,
+  given: [['image', 'numpy array', '2 × N array of points']],
+  defines: [['reflected', 'numpy array', 'reflected image'], ['scaled', 'numpy array', 'scaled image'], ['reflect_then_scale', 'numpy array', 'reflected, then scaled']],
+  starter: py`import numpy as np
+
+reflected = ...
+scaled = ...
+reflect_then_scale = ...
+`,
+  setup: py`sx = PARAMS['sx']
+sy = PARAMS['sy']
+N = int(np.random.randint(20, 40))
+image = np.vstack([np.random.randn(N) * 3, np.random.randn(N) * 2 + 1])
+del N
+`,
+  check: py`R = np.array([[0.0, 1.0], [1.0, 0.0]])
+D = np.array([[S['sx'], 0.0], [0.0, S['sy']]])
+img = S['image']
+G.expect('reflected', R @ img, 3)
+G.expect('scaled', D @ img, 3)
+G.expect('reflect_then_scale', D @ R @ img, 4)
+`,
+  hint: 'Each output row is one equation. For "first A then B" the matrix is B @ A, because the matrix closest to the image acts first.',
+  solution: p => py`import numpy as np
+
+R = np.array([[0, 1],
+              [1, 0]])
+D = np.array([[${p.sx}, 0],
+              [0, ${p.sy}]])
+
+reflected = R @ image
+scaled = D @ image
+reflect_then_scale = D @ R @ image
+`
+},
+{
+  id: 'l3-unmix', lab: 3, title: 'Separate two mixed sounds',
+  params: r => ({}),
+  prompt: p => `
+<p>Two microphones recorded mixtures of two sounds <code>s1</code> and <code>s2</code>:</p>
+<pre>m1 = M[0,0]*s1 + M[0,1]*s2
+m2 = M[1,0]*s1 + M[1,1]*s2</pre>
+<p>You are given the recordings <code>m1</code>, <code>m2</code> and the 2 × 2 mixing matrix <code>M</code>.</p>
+<p>Recover the original sounds and store them as 1d arrays <code>s1</code> and <code>s2</code>.</p>`,
+  given: [['m1', '1d numpy array', 'first recording'], ['m2', '1d numpy array', 'second recording'], ['M', '2d numpy array', '2 × 2 mixing matrix']],
+  defines: [['s1', '1d numpy array', 'first original sound'], ['s2', '1d numpy array', 'second original sound']],
+  starter: py`import numpy as np
+
+s1 = ...
+s2 = ...
+`,
+  setup: py`t = np.linspace(0, 1, 400)
+f1, f2 = [int(f) for f in np.random.choice([3, 5, 7, 11, 13], 2, replace=False)]
+a1 = np.sin(2 * np.pi * f1 * t)
+a2 = 0.6 * np.sign(np.sin(2 * np.pi * f2 * t))
+M = np.round(np.random.uniform(0.2, 1.0, size=(2, 2)), 2)
+while abs(np.linalg.det(M)) < 0.2:
+    M = np.round(np.random.uniform(0.2, 1.0, size=(2, 2)), 2)
+m1 = M[0, 0] * a1 + M[0, 1] * a2
+m2 = M[1, 0] * a1 + M[1, 1] * a2
+del t, f1, f2, a1, a2
+`,
+  check: py`X = ORIG['inv'](S['M']) @ np.vstack([S['m1'], S['m2']])
+G.expect('s1', X[0], 5)
+G.expect('s2', X[1], 5)
+`,
+  hint: 'Stack the recordings into a 2 × N matrix with np.vstack. Then the mixing is mixed = M @ sources, so sources = inv(M) @ mixed.',
+  solution: p => py`import numpy as np
+
+mixed = np.vstack([m1, m2])
+sources = np.linalg.inv(M) @ mixed
+s1 = sources[0]
+s2 = sources[1]
+`
+},
+{
+  id: 'l3-rotate', lab: 3, title: 'Rotate about a point',
+  params: r => ({ th: r.pick([30, 45, 60, 90, 120, 135, 150]), cx: r.int(-4, 4), cy: r.int(-4, 4) }),
+  prompt: p => `
+<p>The variable <code>image</code> is a <code>2 × N</code> array of points (one point per column).</p>
+<p>Rotate every point <b>${p.th} degrees counterclockwise</b> around the point <code>c = (${p.cx}, ${p.cy})</code>, and store the result in <code>rotated</code>.</p>
+<p>A rotation by angle θ around the origin is</p>
+<pre>x' = x cos θ − y sin θ
+y' = x sin θ + y cos θ</pre>
+<p>To rotate around <code>c</code> instead: shift the points so <code>c</code> sits at the origin, rotate, then shift back.</p>`,
+  given: [['image', 'numpy array', '2 × N array of points']],
+  defines: [['rotated', 'numpy array', 'rotated image, 2 × N']],
+  starter: py`import numpy as np
+
+rotated = ...
+`,
+  setup: py`th = PARAMS['th']
+cx = PARAMS['cx']
+cy = PARAMS['cy']
+N = int(np.random.randint(15, 30))
+image = np.vstack([np.random.randn(N) * 2, np.random.randn(N) * 2])
+del N
+`,
+  check: py`t = np.radians(S['th'])
+R = np.array([[np.cos(t), -np.sin(t)], [np.sin(t), np.cos(t)]])
+c = np.array([[S['cx']], [S['cy']]], dtype=float)
+G.expect('rotated', R @ (S['image'] - c) + c, 10)
+`,
+  hint: 'np.cos and np.sin take radians: theta = degrees * np.pi / 180. Make c a 2 × 1 column, np.array([[cx], [cy]]), so it broadcasts across all columns.',
+  solution: p => py`import numpy as np
+
+theta = ${p.th} * np.pi / 180
+R = np.array([[np.cos(theta), -np.sin(theta)],
+              [np.sin(theta),  np.cos(theta)]])
+c = np.array([[${p.cx}],
+              [${p.cy}]])
+
+rotated = R @ (image - c) + c
+`
+},
+
+/* ---------------- LAB 4 ---------------- */
+{
+  id: 'l4-subs', lab: 4, title: 'Forward and back substitution',
+  banned: ['numpy.linalg.solve', 'numpy.linalg.inv', 'scipy.linalg.solve', 'scipy.linalg.inv', 'scipy.linalg.solve_triangular'],
+  params: r => ({}),
+  prompt: p => `
+<p>Write two functions without using <code>np.linalg.solve</code>, <code>np.linalg.inv</code> or <code>solve_triangular</code>:</p>
+<ul>
+<li><code>forward_sub(L, b)</code>: <code>L</code> is an <code>n × n</code> lower triangular matrix with nonzero diagonal. Return the 1d array <code>x</code> with <code>L x = b</code>.</li>
+<li><code>back_sub(U, y)</code>: <code>U</code> is an <code>n × n</code> upper triangular matrix with nonzero diagonal. Return the 1d array <code>x</code> with <code>U x = y</code>.</li>
+</ul>
+<p>Forward substitution solves for <code>x[0]</code> first and works down. Back substitution solves for <code>x[n-1]</code> first and works up.</p>`,
+  given: [['L', '2d numpy array', 'example lower triangular matrix'], ['U', '2d numpy array', 'example upper triangular matrix'], ['b', '1d numpy array', 'example right-hand side']],
+  defines: [['forward_sub', 'function', 'solves L x = b'], ['back_sub', 'function', 'solves U x = y']],
+  starter: py`import numpy as np
+
+def forward_sub(L, b):
+    pass
+
+def back_sub(U, y):
+    pass
+`,
+  setup: py`n = 4
+L = np.tril(np.random.randint(-3, 4, size=(n, n))).astype(float)
+np.fill_diagonal(L, np.random.randint(1, 5, size=n))
+U = np.triu(np.random.randint(-3, 4, size=(n, n))).astype(float)
+np.fill_diagonal(U, np.random.randint(1, 5, size=n))
+b = np.random.randint(-9, 10, size=n).astype(float)
+del n
+`,
+  check: py`def mk(n, lower):
+    A = np.random.randn(n, n)
+    A = np.tril(A) if lower else np.triu(A)
+    np.fill_diagonal(A, np.random.choice([-1, 1], n) * (np.random.rand(n) + 1))
+    return A
+fc = [(S['L'], S['b'])] + [(mk(k, True), np.random.randn(k)) for k in [1, 3, 6, 9]]
+bc = [(S['U'], S['b'])] + [(mk(k, False), np.random.randn(k)) for k in [1, 3, 6, 9]]
+G.expect_fn('forward_sub', fc, lambda A, v: ORIG['solve'](A, v), 5)
+G.expect_fn('back_sub', bc, lambda A, v: ORIG['solve'](A, v), 5)
+`,
+  hint: 'For forward substitution: x[i] = (b[i] - L[i, :i] @ x[:i]) / L[i, i]. For back substitution loop i from n-1 down to 0 with range(n-1, -1, -1).',
+  solution: p => py`import numpy as np
+
+def forward_sub(L, b):
+    n = len(b)
+    x = np.zeros(n)
+    for i in range(n):
+        x[i] = (b[i] - L[i, :i] @ x[:i]) / L[i, i]
+    return x
+
+def back_sub(U, y):
+    n = len(y)
+    x = np.zeros(n)
+    for i in range(n - 1, -1, -1):
+        x[i] = (y[i] - U[i, i+1:] @ x[i+1:]) / U[i, i]
+    return x
+`
+},
+{
+  id: 'l4-rod', lab: 4, title: 'Temperature along a heated rod',
+  banned: ['numpy.linalg.solve', 'scipy.linalg.solve'],
+  params: r => ({ n: r.int(5, 9), TL: r.pick([0, 10, 20, 25, 30]), TR: r.pick([50, 60, 75, 80, 100]), h: r.pick([0.5, 1, 1.5, 2, 3]) }),
+  prompt: p => `
+<p>A rod has ${p.n} interior points with unknown temperatures <code>T[0], ..., T[${p.n - 1}]</code>. The left end is held at ${p.TL} degrees and the right end at ${p.TR} degrees. A heat source adds <code>h = ${p.h}</code> at every interior point.</p>
+<p>At equilibrium each interior point satisfies</p>
+<pre>-T[i-1] + 2*T[i] - T[i+1] = h</pre>
+<p>where <code>T[-1]</code> means the left end (${p.TL}) and <code>T[${p.n}]</code> means the right end (${p.TR}).</p>
+<p>Write this as <code>A T = b</code>. Store the ${p.n} × ${p.n} matrix in <code>A</code>, the right-hand side in <code>b</code>, and the solution in <code>T</code>.</p>
+<p class="ban"><code>np.linalg.solve()</code> is not allowed here, since you may not have it on the exam. Solve another way.</p>`,
+  given: [['n', 'int', 'number of interior points'], ['TL', 'float', 'left end temperature'], ['TR', 'float', 'right end temperature'], ['h', 'float', 'heat source']],
+  defines: [['A', '2d numpy array', 'n × n matrix'], ['b', '1d numpy array', 'right-hand side'], ['T', '1d numpy array', 'interior temperatures']],
+  starter: py`import numpy as np
+
+A = ...
+b = ...
+T = ...
+`,
+  setup: py`n = int(PARAMS['n'])
+TL = float(PARAMS['TL'])
+TR = float(PARAMS['TR'])
+h = float(PARAMS['h'])
+`,
+  check: py`n = S['n']
+A = 2 * np.eye(n) - np.eye(n, k=1) - np.eye(n, k=-1)
+b = np.full(n, S['h'])
+b[0] += S['TL']
+b[-1] += S['TR']
+G.expect('A', A, 3)
+G.expect('b', b, 3)
+G.expect('T', ORIG['solve'](A, b), 4)
+`,
+  hint: 'Row i has 2 on the diagonal and -1 just left and right of it. The known end temperatures move to the right-hand side, so they get added to b[0] and b[-1]. Then use np.linalg.inv(A) @ b, or LU with solve_triangular.',
+  solution: p => py`import numpy as np
+
+A = np.zeros((n, n))
+for i in range(n):
+    A[i, i] = 2
+    if i > 0:
+        A[i, i-1] = -1
+    if i < n - 1:
+        A[i, i+1] = -1
+
+b = np.ones(n) * h
+b[0] += TL
+b[-1] += TR
+
+T = np.linalg.inv(A) @ b
+`
+},
+{
+  id: 'l4-springs', lab: 4, title: 'Spring system with LU',
+  banned: ['numpy.linalg.solve', 'scipy.linalg.solve'],
+  params: r => ({}),
+  prompt: p => `
+<p><code>n</code> masses sit in a line between two walls, joined by <code>n + 1</code> springs. Spring <code>j</code> has stiffness <code>k[j]</code>. Spring 0 joins the left wall to mass 0, spring <code>i</code> joins mass <code>i-1</code> to mass <code>i</code>, and spring <code>n</code> joins mass <code>n-1</code> to the right wall.</p>
+<p>The stiffness matrix <code>K</code> is <code>n × n</code> with</p>
+<pre>K[i, i]   = k[i] + k[i+1]
+K[i, i+1] = K[i+1, i] = -k[i+1]</pre>
+<p>and zeros elsewhere. The displacements <code>u</code> satisfy <code>K u = f</code>.</p>
+<ol>
+<li>Build <code>K</code>.</li>
+<li>Write <code>my_LU_solve(A, B)</code>, which solves <code>A X = B</code> for a square <code>A</code> and a 2d array <code>B</code> (one right-hand side per column) using <code>scipy.linalg.lu</code> and <code>scipy.linalg.solve_triangular</code>.</li>
+<li>Compute the 1d array <code>u</code>.</li>
+</ol>
+<p class="ban"><code>np.linalg.solve()</code> is not allowed here.</p>`,
+  given: [['n', 'int', 'number of masses'], ['k', '1d numpy array', 'spring stiffnesses, length n + 1'], ['f', '1d numpy array', 'forces on the masses, length n']],
+  defines: [['K', '2d numpy array', 'stiffness matrix'], ['my_LU_solve', 'function', 'solves A X = B with LU'], ['u', '1d numpy array', 'displacements']],
+  starter: py`import numpy as np
+import scipy.linalg as sla
+
+K = ...
+
+def my_LU_solve(A, B):
+    pass
+
+u = ...
+`,
+  setup: py`n = int(np.random.randint(4, 8))
+k = np.random.randint(1, 10, size=n + 1).astype(float)
+f = np.random.randint(-5, 6, size=n).astype(float)
+`,
+  check: py`n = S['n']
+k = S['k']
+K = np.zeros((n, n))
+for i in range(n):
+    K[i, i] = k[i] + k[i + 1]
+    if i < n - 1:
+        K[i, i + 1] = K[i + 1, i] = -k[i + 1]
+G.expect('K', K, 3)
+def mkA(m):
+    A = np.random.randn(m, m)
+    return A + np.eye(m) * m
+cases = [(K, np.column_stack([S['f'], np.ones(n)]))] + [(mkA(m), np.random.randn(m, c)) for m, c in [(3, 1), (5, 4), (8, 2)]]
+G.expect_fn('my_LU_solve', cases, lambda A, B: ORIG['solve'](A, B), 4)
+G.expect('u', ORIG['solve'](K, S['f']), 3)
+`,
+  hint: 'sla.lu(A) returns P, L, U with A = P @ L @ U. Then A X = B becomes L Y = P.T @ B (forward, lower=True), then U X = Y (back). P is a permutation, so its inverse is P.T.',
+  solution: p => py`import numpy as np
+import scipy.linalg as sla
+
+K = np.zeros((n, n))
+for i in range(n):
+    K[i, i] = k[i] + k[i+1]
+    if i < n - 1:
+        K[i, i+1] = -k[i+1]
+        K[i+1, i] = -k[i+1]
+
+def my_LU_solve(A, B):
+    P, L, U = sla.lu(A)
+    Y = sla.solve_triangular(L, P.T @ B, lower=True)
+    X = sla.solve_triangular(U, Y)
+    return X
+
+u = my_LU_solve(K, f.reshape(-1, 1))[:, 0]
+`
+},
+{
+  id: 'l4-circuit', lab: 4, title: 'Parallel circuit',
+  params: r => ({}),
+  prompt: p => `
+<p>A circuit has <code>N</code> branches in parallel. Branch <code>j</code> has a resistor <code>R[j]</code> and a power supply <code>E[j]</code>. Ohm's law on each branch gives</p>
+<pre>I[j]*R[j] + V = E[j]      for j = 0, ..., N-1</pre>
+<p>and Kirchhoff's law gives</p>
+<pre>I[0] + I[1] + ... + I[N-1] = 0</pre>
+<p>The unknown vector is <code>x = [I[0], ..., I[N-1], V]</code> (length <code>N + 1</code>) and the right-hand side is <code>[E[0], ..., E[N-1], 0]</code>.</p>
+<p>Build the <code>(N+1) × (N+1)</code> matrix <code>A</code> and store the solution vector in <code>x</code>.</p>`,
+  given: [['N', 'int', 'number of branches'], ['R', '1d numpy array', 'resistances, length N'], ['E', '1d numpy array', 'electromotive forces, length N']],
+  defines: [['A', '2d numpy array', 'system matrix'], ['x', '1d numpy array', 'currents followed by V']],
+  starter: py`import numpy as np
+
+A = ...
+x = ...
+`,
+  setup: py`N = int(np.random.randint(3, 7))
+R = np.random.randint(1, 10, size=N).astype(float)
+E = np.random.randint(-12, 13, size=N).astype(float)
+`,
+  check: py`N = S['N']
+A = np.zeros((N + 1, N + 1))
+for j in range(N):
+    A[j, j] = S['R'][j]
+    A[j, N] = 1
+A[N, :N] = 1
+G.expect('A', A, 4)
+G.expect('x', ORIG['solve'](A, np.append(S['E'], 0.0)), 6)
+`,
+  hint: 'Try N = 2 on paper first. Row j has R[j] in column j and 1 in the last column. The last row has 1 in the first N columns and 0 in the last.',
+  solution: p => py`import numpy as np
+
+A = np.zeros((N + 1, N + 1))
+for j in range(N):
+    A[j, j] = R[j]
+    A[j, N] = 1
+A[N, :N] = 1
+
+rhs = np.append(E, 0)
+x = np.linalg.inv(A) @ rhs
+`
+},
+
+/* ---------------- LAB 5 ---------------- */
+{
+  id: 'l5-flights', lab: 5, title: 'Flights with layovers',
+  params: r => ({ src: r.int(0, 29), dst: r.int(0, 29) }),
+  fix: p => { if (p.dst === p.src) p.dst = (p.src + 7) % 30; return p; },
+  prompt: p => `
+<p>The symmetric 30 × 30 matrix <code>G</code> is the adjacency matrix of nonstop flights between 30 airports: <code>G[i, j] = 1</code> if there is a nonstop flight between airports <code>i</code> and <code>j</code>.</p>
+<ol>
+<li><code>walks2</code>: the matrix whose entry <code>[i, j]</code> counts walks of length exactly 2 from <code>j</code> to <code>i</code></li>
+<li><code>atmost3</code>: the matrix counting walks of length 1, 2 or 3 (at most two layovers)</li>
+<li><code>routes</code>: the number of ways to fly from airport ${p.src} to airport ${p.dst} with at most two layovers, as an <code>int</code> (zero-indexed airports)</li>
+</ol>`,
+  given: [['G', 'numpy array', '30 × 30 adjacency matrix']],
+  defines: [['walks2', 'numpy array', '30 × 30'], ['atmost3', 'numpy array', '30 × 30'], ['routes', 'int', 'number of routes']],
+  starter: py`import numpy as np
+import numpy.linalg as la
+
+walks2 = ...
+atmost3 = ...
+routes = ...
+`,
+  setup: py`src = PARAMS['src']
+dst = PARAMS['dst']
+n = 30
+A = (np.random.rand(n, n) < 0.12).astype(float)
+G = np.triu(A, 1)
+G = G + G.T
+del A, n
+`,
+  check: py`Gm = S['G']
+W2 = Gm @ Gm
+W3 = W2 @ Gm
+M = Gm + W2 + W3
+G.expect('walks2', W2, 3)
+G.expect('atmost3', M, 4)
+G.expect('routes', int(M[S['dst'], S['src']]), 3)
+`,
+  hint: 'Entry [i, j] of G^k counts walks of length k. la.matrix_power(G, k) or G @ G. The answer is entry [destination, source].',
+  solution: p => py`import numpy as np
+import numpy.linalg as la
+
+walks2 = G @ G
+atmost3 = G + la.matrix_power(G, 2) + la.matrix_power(G, 3)
+routes = int(atmost3[${p.dst}, ${p.src}])
+`
+},
+{
+  id: 'l5-components', lab: 5, title: 'Friend groups from an incidence matrix',
+  params: r => ({ person: r.int(0, 39) }),
+  prompt: p => `
+<p>A social network of 40 people is stored as an edge-node incidence matrix <code>D</code>. Each row is one friendship (edge): it has <code>-1</code> in the column of one person and <code>+1</code> in the column of the other. The direction carries no meaning.</p>
+<p>A friend group is a connected component. You are given a function <code>nullspace(M)</code> that returns a 2d array whose columns are a basis of the nullspace of <code>M</code>.</p>
+<ol>
+<li><code>num_groups</code>: the number of friend groups (an <code>int</code>)</li>
+<li><code>adj</code>: the 40 × 40 adjacency matrix, with <code>adj[i, j] = 1</code> when <code>i</code> and <code>j</code> are friends and 0 otherwise</li>
+<li><code>num_reached</code>: how many people see a meme that starts with person ${p.person}, if everyone forwards it to all their friends (include person ${p.person})</li>
+</ol>`,
+  given: [['D', 'numpy array', 'edge-node incidence matrix, shape (edges, 40)'], ['nullspace', 'function', 'basis of the nullspace of a matrix']],
+  defines: [['num_groups', 'int', 'number of connected components'], ['adj', 'numpy array', '40 × 40 adjacency matrix'], ['num_reached', 'int', 'people who see the meme']],
+  starter: py`import numpy as np
+import numpy.linalg as la
+
+num_groups = ...
+adj = ...
+num_reached = ...
+`,
+  setup: py`person = PARAMS['person']
+def nullspace(M, tol=1e-10):
+    u, s, vh = np.linalg.svd(M)
+    rank = int((s > tol).sum())
+    return vh[rank:].T.copy()
+n = 40
+k = int(np.random.randint(3, 7))
+labels = np.random.permutation(np.arange(n) % k)
+edges = set()
+for g in range(k):
+    members = list(np.where(labels == g)[0])
+    np.random.shuffle(members)
+    for a, b in zip(members[:-1], members[1:]):
+        edges.add((min(a, b), max(a, b)))
+    for _ in range(len(members) // 2):
+        a, b = np.random.choice(members, 2, replace=False)
+        edges.add((min(a, b), max(a, b)))
+edges = sorted(edges)
+D = np.zeros((len(edges), n))
+for r, (a, b) in enumerate(edges):
+    if np.random.rand() < 0.5:
+        a, b = b, a
+    D[r, a] = -1
+    D[r, b] = 1
+group_labels = labels
+del labels, edges, members, n, g, r, a, b, k
+`,
+  check: py`lab = S['group_labels']
+Dm = S['D']
+A = np.zeros((40, 40))
+for row in Dm:
+    i = int(np.where(row == -1)[0][0])
+    j = int(np.where(row == 1)[0][0])
+    A[i, j] = A[j, i] = 1
+G.expect('num_groups', int(len(set(lab.tolist()))), 4)
+G.expect('adj', A, 3)
+G.expect('num_reached', int((lab == lab[S['person']]).sum()), 3)
+`,
+  hint: 'The dimension of the nullspace of the incidence matrix equals the number of connected components: nullspace(D).shape[1]. For reach, (I + adj) raised to the power 39 is positive exactly where a walk exists.',
+  solution: p => py`import numpy as np
+import numpy.linalg as la
+
+num_groups = nullspace(D).shape[1]
+
+n = D.shape[1]
+adj = np.zeros((n, n))
+for row in D:
+    i = np.where(row == -1)[0][0]
+    j = np.where(row == 1)[0][0]
+    adj[i, j] = 1
+    adj[j, i] = 1
+
+reach = la.matrix_power(np.eye(n) + adj, n - 1)
+num_reached = int(np.count_nonzero(reach[:, ${p.person}]))
+`
+},
+{
+  id: 'l5-indegree', lab: 5, title: 'Links in a directed graph',
+  params: r => ({ a: r.int(0, 24), b: r.int(0, 24) }),
+  prompt: p => `
+<p><code>W</code> is the 25 × 25 adjacency matrix of a directed graph of web pages: <code>W[i, j] = 1</code> when page <code>j</code> links to page <code>i</code> (columns are "from", rows are "to").</p>
+<ul>
+<li><code>in_deg</code>: 1d array, number of links pointing <b>to</b> each page</li>
+<li><code>out_deg</code>: 1d array, number of links going <b>out of</b> each page</li>
+<li><code>most_cited</code>: index of the page with the most incoming links (smallest index if tied), as an <code>int</code></li>
+<li><code>two_step</code>: number of directed walks of length exactly 2 from page ${p.a} to page ${p.b}, as an <code>int</code></li>
+</ul>`,
+  given: [['W', 'numpy array', '25 × 25 directed adjacency matrix']],
+  defines: [['in_deg', '1d numpy array', 'incoming links per page'], ['out_deg', '1d numpy array', 'outgoing links per page'], ['most_cited', 'int', 'page with most incoming links'], ['two_step', 'int', 'walks of length 2']],
+  starter: py`import numpy as np
+
+in_deg = ...
+out_deg = ...
+most_cited = ...
+two_step = ...
+`,
+  setup: py`a = PARAMS['a']
+b = PARAMS['b']
+W = (np.random.rand(25, 25) < 0.18).astype(float)
+np.fill_diagonal(W, 0)
+`,
+  check: py`Wm = S['W']
+ind = Wm.sum(axis=1)
+G.expect('in_deg', ind, 3)
+G.expect('out_deg', Wm.sum(axis=0), 2)
+G.expect('most_cited', int(np.argmax(ind)), 2)
+G.expect('two_step', int((Wm @ Wm)[S['b'], S['a']]), 3)
+`,
+  hint: 'Row i lists the pages that link to i, so the row sum is the in-degree: np.sum(W, axis=1). Column sums give out-degree. For walks from a to b use (W @ W)[b, a].',
+  solution: p => py`import numpy as np
+
+in_deg = np.sum(W, axis=1)
+out_deg = np.sum(W, axis=0)
+most_cited = int(np.argmax(in_deg))
+two_step = int((W @ W)[${p.b}, ${p.a}])
+`
+},
+{
+  id: 'l5-separation', lab: 5, title: 'Degrees of separation',
+  params: r => ({}),
+  prompt: p => `
+<p>Write a function <code>separation(network)</code>. The input is the adjacency matrix of an undirected graph with <code>n</code> nodes (a symmetric 2d array of 0s and 1s).</p>
+<p>Return the smallest integer <code>k ≥ 1</code> such that every pair of different nodes is joined by a walk of length at most <code>k</code>. If some pair is never joined (the graph is disconnected), return <code>-1</code>.</p>
+<pre>path 0 - 1 - 2 - 3   →  3
+triangle            →  1
+two separate edges  →  -1</pre>`,
+  given: [['network', 'numpy array', 'example adjacency matrix']],
+  defines: [['separation', 'function', 'returns k or -1']],
+  starter: py`import numpy as np
+import numpy.linalg as la
+
+def separation(network):
+    pass
+`,
+  setup: py`network = np.array([[0, 1, 0, 0], [1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 0]], dtype=float)
+`,
+  check: py`def ref(A):
+    n = A.shape[0]
+    M = np.eye(n) + A
+    P = np.eye(n)
+    for k in range(1, n):
+        P = P @ M
+        if np.all(P > 0):
+            return k
+    return -1
+def path(n):
+    A = np.zeros((n, n))
+    for i in range(n - 1):
+        A[i, i + 1] = A[i + 1, i] = 1
+    return A
+def cycle(n):
+    A = path(n)
+    A[0, n - 1] = A[n - 1, 0] = 1
+    return A
+def rnd(n, p):
+    A = np.triu((np.random.rand(n, n) < p).astype(float), 1)
+    return A + A.T
+two = np.zeros((4, 4)); two[0, 1] = two[1, 0] = two[2, 3] = two[3, 2] = 1
+cases = [(S['network'],), (path(6),), (cycle(7),), (np.ones((5, 5)) - np.eye(5),), (two,), (rnd(12, 0.3),), (rnd(10, 0.15),), (cycle(10),)]
+G.expect_fn('separation', cases, ref, 10)
+`,
+  hint: '(I + A)^k has a positive entry [i, j] exactly when i and j are joined by a walk of length at most k. Try k = 1, 2, ..., n-1 with np.all(M > 0).',
+  solution: p => py`import numpy as np
+import numpy.linalg as la
+
+def separation(network):
+    n = network.shape[0]
+    for k in range(1, n):
+        M = la.matrix_power(np.eye(n) + network, k)
+        if np.all(M > 0):
+            return k
+    return -1
+`
+},
+
+/* ---------------- LAB 6 ---------------- */
+{
+  id: 'l6-denoise', lab: 6, title: 'Denoise a signal with the DCT',
+  params: r => ({ tol: r.pick([0.5, 0.8, 1.0, 1.2]) }),
+  prompt: p => `
+<p>The 1d array <code>audio_signal</code> has length 256 and contains background noise. The helper <code>create_dct_basis(n)</code> returns an <code>n × n</code> matrix whose columns are the DCT basis of R<sup>n</sup> (the columns are orthonormal).</p>
+<ol>
+<li><code>coordinates</code>: the coordinate vector of <code>audio_signal</code> with respect to the DCT basis</li>
+<li><code>coordinates_filtered</code>: a copy of <code>coordinates</code> where every entry with absolute value less than ${p.tol} is replaced by 0</li>
+<li><code>denoised</code>: the vector whose DCT coordinates are <code>coordinates_filtered</code></li>
+<li><code>num_kept</code>: the number of nonzero entries in <code>coordinates_filtered</code> (an <code>int</code>)</li>
+</ol>`,
+  given: [['audio_signal', '1d numpy array', 'noisy signal, length 256'], ['create_dct_basis', 'function', 'n × n DCT basis matrix']],
+  defines: [['coordinates', '1d numpy array', 'DCT coordinates'], ['coordinates_filtered', '1d numpy array', 'thresholded coordinates'], ['denoised', '1d numpy array', 'denoised signal'], ['num_kept', 'int', 'number of nonzero coordinates']],
+  starter: py`import numpy as np
+
+coordinates = ...
+coordinates_filtered = ...
+denoised = ...
+num_kept = ...
+`,
+  setup: py`tol = PARAMS['tol']
+def create_dct_basis(n):
+    j = np.arange(n).reshape(-1, 1)
+    k = np.arange(n).reshape(1, -1)
+    B = np.cos(np.pi * (2 * j + 1) * k / (2 * n))
+    B[:, 0] *= np.sqrt(1 / n)
+    B[:, 1:] *= np.sqrt(2 / n)
+    return B
+n = 256
+x = np.arange(n)
+clean = 3 * np.cos(np.pi * (2 * x + 1) * 4 / (2 * n)) + 2 * np.cos(np.pi * (2 * x + 1) * 15 / (2 * n)) + np.cos(np.pi * (2 * x + 1) * 31 / (2 * n))
+audio_signal = clean + 0.15 * np.random.randn(n)
+del n, x, clean
+`,
+  check: py`B = S['create_dct_basis'](256)
+c = B.T @ S['audio_signal']
+cf = c.copy()
+cf[np.abs(cf) < S['tol']] = 0
+G.expect('coordinates', c, 3)
+G.expect('coordinates_filtered', cf, 3)
+G.expect('denoised', B @ cf, 2)
+G.expect('num_kept', int(np.count_nonzero(cf)), 2)
+`,
+  hint: 'If the columns of B are the basis, then signal = B @ coordinates. B is orthonormal, so coordinates = B.T @ signal. Use a boolean mask: c[np.abs(c) < tol] = 0.',
+  solution: p => py`import numpy as np
+
+B = create_dct_basis(len(audio_signal))
+coordinates = B.T @ audio_signal
+
+coordinates_filtered = coordinates.copy()
+coordinates_filtered[np.abs(coordinates_filtered) < ${p.tol}] = 0
+
+denoised = B @ coordinates_filtered
+num_kept = int(np.count_nonzero(coordinates_filtered))
+`
+},
+{
+  id: 'l6-compress', lab: 6, title: 'Compress an image in 8 × 8 chunks',
+  params: r => ({ pct: r.pick([5, 10, 15, 20]) }),
+  prompt: p => `
+<p><code>image</code> is a 64 × 64 grayscale image with pixel values from 0 to 255. Compress it by splitting it into 8 × 8 chunks. For each chunk:</p>
+<ol>
+<li>Convert the chunk to the 2D DCT basis: <code>C = B.T @ chunk @ B</code>, where <code>B = create_dct_basis(8)</code></li>
+<li>Set to 0 every entry of <code>C</code> whose absolute value is less than ${p.pct}% of the largest absolute value in <code>C</code></li>
+<li>Convert back: <code>B @ C @ B.T</code></li>
+<li>Clip the values so they lie between 0 and 255</li>
+</ol>
+<p>Define <code>compress_chunk(chunk)</code>, which returns the compressed 8 × 8 chunk, and use it to build the 64 × 64 array <code>compressed</code>.</p>`,
+  given: [['image', 'numpy array', '64 × 64 image'], ['create_dct_basis', 'function', 'n × n DCT basis matrix']],
+  defines: [['compress_chunk', 'function', 'compresses one 8 × 8 chunk'], ['compressed', 'numpy array', '64 × 64 compressed image']],
+  starter: py`import numpy as np
+
+def compress_chunk(chunk):
+    pass
+
+compressed = ...
+`,
+  setup: py`pct = PARAMS['pct']
+def create_dct_basis(n):
+    j = np.arange(n).reshape(-1, 1)
+    k = np.arange(n).reshape(1, -1)
+    B = np.cos(np.pi * (2 * j + 1) * k / (2 * n))
+    B[:, 0] *= np.sqrt(1 / n)
+    B[:, 1:] *= np.sqrt(2 / n)
+    return B
+yy, xx = np.mgrid[0:64, 0:64]
+img = 120 + 60 * np.sin(xx / 9.0) * np.cos(yy / 13.0) + 0.9 * (xx - 32) + 25 * np.random.randn(64, 64)
+img[20:40, 10:30] += 70
+image = np.clip(np.round(img), 0, 255)
+del yy, xx, img
+`,
+  check: py`B = S['create_dct_basis'](8)
+frac = S['pct'] / 100.0
+def ref_chunk(ch):
+    C = B.T @ ch @ B
+    C[np.abs(C) < frac * np.max(np.abs(C))] = 0
+    return np.clip(B @ C @ B.T, 0, 255)
+img = S['image']
+out = np.zeros_like(img)
+for i in range(0, 64, 8):
+    for j in range(0, 64, 8):
+        out[i:i+8, j:j+8] = ref_chunk(img[i:i+8, j:j+8])
+cases = [(img[0:8, 0:8].copy(),), (img[24:32, 16:24].copy(),), (np.random.rand(8, 8) * 255,), (np.random.rand(8, 8) * 400 - 50,)]
+G.expect_fn('compress_chunk', cases, ref_chunk, 4)
+G.expect('compressed', out, 6)
+`,
+  hint: 'Loop i and j over range(0, 64, 8) and slice image[i:i+8, j:j+8]. np.clip(X, 0, 255) handles the last step.',
+  solution: p => py`import numpy as np
+
+B = create_dct_basis(8)
+
+def compress_chunk(chunk):
+    C = B.T @ chunk @ B
+    C[np.abs(C) < ${p.pct / 100} * np.max(np.abs(C))] = 0
+    out = B @ C @ B.T
+    return np.clip(out, 0, 255)
+
+compressed = np.zeros(image.shape)
+for i in range(0, 64, 8):
+    for j in range(0, 64, 8):
+        compressed[i:i+8, j:j+8] = compress_chunk(image[i:i+8, j:j+8])
+`
+},
+{
+  id: 'l6-basis', lab: 6, title: 'Coordinates and change of basis',
+  params: r => ({}),
+  prompt: p => `
+<p>The columns of the 4 × 4 matrix <code>B</code> form a basis 𝓑 of R<sup>4</sup>, and the columns of <code>C</code> form another basis 𝒞.</p>
+<ol>
+<li><code>c</code>: the coordinate vector of <code>x</code> with respect to 𝓑, so that <code>B @ c</code> equals <code>x</code></li>
+<li><code>y</code>: the vector (in standard coordinates) whose 𝓑-coordinates are <code>d</code></li>
+<li><code>P_CB</code>: the change-of-coordinates matrix from 𝓑 to 𝒞, so that <code>P_CB @ [v]_𝓑 = [v]_𝒞</code> for every vector <code>v</code></li>
+</ol>
+<p>The basis here is not orthonormal, so <code>B.T</code> is not the inverse.</p>`,
+  given: [['B', '2d numpy array', 'basis 𝓑 (columns)'], ['C', '2d numpy array', 'basis 𝒞 (columns)'], ['x', '1d numpy array', 'a vector'], ['d', '1d numpy array', '𝓑-coordinates of a vector']],
+  defines: [['c', '1d numpy array', 'coordinates of x in 𝓑'], ['y', '1d numpy array', 'vector with 𝓑-coordinates d'], ['P_CB', '2d numpy array', 'change of coordinates 𝓑 → 𝒞']],
+  starter: py`import numpy as np
+
+c = ...
+y = ...
+P_CB = ...
+`,
+  setup: py`def mk():
+    while True:
+        M = np.random.randint(-3, 4, size=(4, 4)).astype(float)
+        if abs(np.linalg.det(M)) > 2:
+            return M
+B = mk()
+C = mk()
+x = np.random.randint(-6, 7, size=4).astype(float)
+d = np.random.randint(-4, 5, size=4).astype(float)
+del mk
+`,
+  check: py`Bm = S['B']
+Cm = S['C']
+G.expect('c', ORIG['solve'](Bm, S['x']), 3)
+G.expect('y', Bm @ S['d'], 3)
+G.expect('P_CB', ORIG['inv'](Cm) @ Bm, 4)
+`,
+  hint: 'B @ c = x means c = inv(B) @ x. Going from 𝓑 to standard coordinates multiplies by B, and from standard to 𝒞 multiplies by inv(C). So P_CB = inv(C) @ B.',
+  solution: p => py`import numpy as np
+
+c = np.linalg.inv(B) @ x
+y = B @ d
+P_CB = np.linalg.inv(C) @ B
+`
+}
+];
+
+const GROUPS = {
+  py: 'Python core',
+  arr: 'Arrays & matrices',
+  mask: 'Masks & reductions',
+  geo: 'Transforms',
+  solve: 'Solving systems',
+  graph: 'Graphs',
+  basis: 'Bases & the DCT'
+};
+
+const matStr = (name, M) => {
+  const cells = M.map(r => r.map(v => String(v)));
+  const w = Math.max(...cells.flat().map(s => s.length));
+  return name + ' =\n' + cells.map(r => '[ ' + r.map(s => s.padStart(w)).join('  ') + ' ]').join('\n');
+};
+const randMat = (r, n, m, lo, hi) => Array.from({ length: n }, () => Array.from({ length: m }, () => r.int(lo, hi)));
+
+const DRILLS = [
+/* ---------- Python core ---------- */
+{
+  id: 'd-slice', group: 'py', title: 'Slicing a list',
+  params: r => ({}),
+  prompt: p => `<p>Given a list <code>A</code> and an int <code>n</code>, define <code>first</code> (first n entries), <code>last_rev</code> (last n entries, reversed) and <code>evens</code> (entries at even indices 0, 2, 4, …).</p>`,
+  given: [['A', 'list', 'numbers'], ['n', 'int', 'a count']],
+  defines: [['first', 'list', 'A[0..n-1]'], ['last_rev', 'list', 'last n, reversed'], ['evens', 'list', 'every other entry from index 0']],
+  starter: py`first = ...
+last_rev = ...
+evens = ...
+`,
+  setup: py`A = [int(x) for x in np.random.randint(-9, 30, size=int(np.random.randint(8, 13)))]
+n = int(np.random.randint(2, 5))
+`,
+  check: py`A, n = S['A'], S['n']
+G.expect('first', A[:n], 3)
+G.expect('last_rev', A[::-1][:n], 4)
+G.expect('evens', A[::2], 3)
+`,
+  solution: p => py`first = A[:n]
+last_rev = A[::-1][:n]     # or A[-n:][::-1]
+evens = A[::2]
+`,
+  idea: 'A[start:stop:step]. A negative step walks backward, so A[::-1] reverses. A[-n:] is the last n.'
+},
+{
+  id: 'd-tuple', group: 'py', title: 'Return two things',
+  params: r => ({}),
+  prompt: p => `<p>Write <code>spread(A)</code> that returns the tuple <code>(smallest, largest)</code> of a non-empty list, using a loop (no <code>min</code>/<code>max</code> on the whole list).</p>`,
+  given: [['A', 'list', 'example list']],
+  defines: [['spread', 'function', 'returns (smallest, largest)']],
+  starter: py`def spread(A):
+    pass
+`,
+  setup: py`A = [int(x) for x in np.random.randint(-20, 20, size=8)]
+`,
+  check: py`cases = [(S['A'],), ([4],), ([3, -1, 7, 7],)] + [([float(x) for x in np.random.randn(k)],) for k in [5, 9]]
+G.expect_fn('spread', cases, lambda A: (min(A), max(A)), 10)
+`,
+  solution: p => py`def spread(A):
+    lo = A[0]
+    hi = A[0]
+    for a in A:
+        if a < lo:
+            lo = a
+        if a > hi:
+            hi = a
+    return lo, hi
+`,
+  idea: 'Start the running values at A[0], update inside one loop, and return lo, hi (a comma makes a tuple).'
+},
+{
+  id: 'd-backloop', group: 'py', title: 'Loop backwards',
+  params: r => ({}),
+  prompt: p => `<p>Back substitution walks indices from <code>n-1</code> down to <code>0</code>. Define <code>order</code> as that list of indices for the given <code>n</code>, and <code>tails</code>, where <code>tails[k]</code> is <code>sum(v[i+1:])</code> for <code>i = order[k]</code>.</p>`,
+  given: [['n', 'int', 'length'], ['v', '1d numpy array', 'length n']],
+  defines: [['order', 'list', '[n-1, ..., 0]'], ['tails', 'list', 'sums of v after each index, in that order']],
+  starter: py`order = ...
+tails = ...
+`,
+  setup: py`n = int(np.random.randint(4, 9))
+v = np.random.randint(-5, 6, size=n).astype(float)
+`,
+  check: py`n, v = S['n'], S['v']
+o = list(range(n - 1, -1, -1))
+G.expect('order', o, 5)
+G.expect('tails', [float(v[i + 1:].sum()) for i in o], 5)
+`,
+  solution: p => py`order = list(range(n - 1, -1, -1))
+tails = [sum(v[i+1:]) for i in order]
+`,
+  idea: 'range(n-1, -1, -1): the stop is -1 because range excludes it. v[i+1:] for i = n-1 is empty and sums to 0.'
+},
+
+/* ---------- Arrays ---------- */
+{
+  id: 'd-build', group: 'arr', title: 'Type a matrix',
+  params: r => ({ m: randMat(r, 3, 3, -5, 9) }),
+  prompt: p => `<p>Create this matrix as a NumPy array named <code>M</code>, then define <code>Mt</code> (its transpose) and <code>shape</code> (its shape).</p><pre>${matStr('M', p.m)}</pre>`,
+  given: [],
+  defines: [['M', 'numpy array', 'the matrix above'], ['Mt', 'numpy array', 'transpose'], ['shape', 'tuple', 'M.shape']],
+  starter: py`import numpy as np
+
+M = ...
+Mt = ...
+shape = ...
+`,
+  setup: py`pass
+`,
+  check: py`M = np.array(S['PARAMS']['m'], dtype=float)
+G.expect('M', M, 5)
+G.expect('Mt', M.T, 3)
+G.expect('shape', tuple(M.shape), 2)
+`,
+  solution: p => py`import numpy as np
+
+M = np.array([${p.m.map(r => '[' + r.join(', ') + ']').join(',\n              ')}])
+Mt = M.T
+shape = M.shape
+`,
+  idea: 'One inner list per row. .T transposes, .shape is (rows, cols).'
+},
+{
+  id: 'd-matmul', group: 'arr', title: '@ versus *',
+  params: r => ({}),
+  prompt: p => `<p>For the 3 × 3 matrices <code>A</code>, <code>B</code> and vector <code>x</code>, define <code>prod</code> (matrix product AB), <code>entry</code> (entrywise product), <code>Ax</code> (matrix times vector) and <code>combo</code> = 2x − 3·(Ax).</p>`,
+  given: [['A', 'numpy array', '3 × 3'], ['B', 'numpy array', '3 × 3'], ['x', '1d numpy array', 'length 3']],
+  defines: [['prod', 'numpy array', 'A B'], ['entry', 'numpy array', 'entrywise'], ['Ax', '1d numpy array', 'A x'], ['combo', '1d numpy array', '2x − 3(Ax)']],
+  starter: py`import numpy as np
+
+prod = ...
+entry = ...
+Ax = ...
+combo = ...
+`,
+  setup: py`A = np.random.randint(-4, 5, size=(3, 3)).astype(float)
+B = np.random.randint(-4, 5, size=(3, 3)).astype(float)
+x = np.random.randint(-4, 5, size=3).astype(float)
+`,
+  check: py`A, B, x = S['A'], S['B'], S['x']
+G.expect('prod', A @ B, 3)
+G.expect('entry', A * B, 2)
+G.expect('Ax', A @ x, 3)
+G.expect('combo', 2 * x - 3 * (A @ x), 2)
+`,
+  solution: p => py`import numpy as np
+
+prod = A @ B
+entry = A * B
+Ax = A @ x
+combo = 2 * x - 3 * Ax
+`,
+  idea: '@ is the linear-algebra product. * multiplies matching entries. Scalars and + - work entrywise on arrays.'
+},
+{
+  id: 'd-index', group: 'arr', title: 'Rows, columns, blocks',
+  params: r => ({ i: r.int(0, 5), j: r.int(0, 5), bi: r.pick([0, 2, 4]), bj: r.pick([0, 2, 4]) }),
+  prompt: p => `<p><code>M</code> is 8 × 8. Define <code>row</code> (row ${p.i}), <code>col</code> (column ${p.j}), <code>block</code> (the 4 × 4 block whose top-left corner is <code>[${p.bi}, ${p.bj}]</code>) and <code>Z</code>, a copy of <code>M</code> with that block set to 0 (leave <code>M</code> unchanged).</p>`,
+  given: [['M', 'numpy array', '8 × 8']],
+  defines: [['row', '1d numpy array', 'one row'], ['col', '1d numpy array', 'a column'], ['block', 'numpy array', '4 × 4'], ['Z', 'numpy array', 'copy with block zeroed']],
+  starter: py`import numpy as np
+
+row = ...
+col = ...
+block = ...
+Z = ...
+`,
+  setup: py`M = np.random.randint(0, 50, size=(8, 8)).astype(float)
+`,
+  check: py`p = S['PARAMS']
+M = S['M']
+i, j, bi, bj = p['i'], p['j'], p['bi'], p['bj']
+G.expect('row', M[i, :], 2)
+G.expect('col', M[:, j], 2)
+G.expect('block', M[bi:bi+4, bj:bj+4], 3)
+Zr = M.copy()
+Zr[bi:bi+4, bj:bj+4] = 0
+G.expect('Z', Zr, 2)
+zok = 'Z' in U and U['Z'] is not Ellipsis
+if zok and 'M' in U and not np.array_equal(U['M'], M):
+    G._add('M unchanged', False, 1, 'M was modified. Use M.copy() before assigning into it.')
+else:
+    G._add('M unchanged', zok, 1, 'M was left unchanged' if zok else 'define Z first')
+`,
+  solution: p => py`import numpy as np
+
+row = M[${p.i}, :]
+col = M[:, ${p.j}]
+block = M[${p.bi}:${p.bi + 4}, ${p.bj}:${p.bj + 4}]
+Z = M.copy()
+Z[${p.bi}:${p.bi + 4}, ${p.bj}:${p.bj + 4}] = 0
+`,
+  idea: 'M[i, :] row, M[:, j] column, M[a:a+4, b:b+4] block. Assigning into a slice changes the original, so copy first.'
+},
+{
+  id: 'd-stack', group: 'arr', title: 'Stack and reshape',
+  params: r => ({}),
+  prompt: p => `<p>Given vectors <code>u</code> and <code>v</code> (same length n), define <code>rows</code> (2 × n, u on top), <code>cols</code> (n × 2, u is column 0), <code>ucol</code> (u as an n × 1 column) and <code>longer</code> (v with a 0 added at the end).</p>`,
+  given: [['u', '1d numpy array', 'length n'], ['v', '1d numpy array', 'length n']],
+  defines: [['rows', 'numpy array', '2 × n'], ['cols', 'numpy array', 'n × 2'], ['ucol', 'numpy array', 'n × 1'], ['longer', '1d numpy array', 'length n + 1']],
+  starter: py`import numpy as np
+
+rows = ...
+cols = ...
+ucol = ...
+longer = ...
+`,
+  setup: py`n = int(np.random.randint(4, 8))
+u = np.random.randint(-9, 10, size=n).astype(float)
+v = np.random.randint(-9, 10, size=n).astype(float)
+del n
+`,
+  check: py`u, v = S['u'], S['v']
+G.expect('rows', np.vstack([u, v]), 3)
+G.expect('cols', np.column_stack([u, v]), 3)
+G.expect('ucol', u.reshape(-1, 1), 2)
+G.expect('longer', np.append(v, 0.0), 2)
+`,
+  solution: p => py`import numpy as np
+
+rows = np.vstack([u, v])
+cols = np.column_stack([u, v])     # or rows.T
+ucol = u.reshape(-1, 1)
+longer = np.append(v, 0)
+`,
+  idea: 'vstack puts vectors in rows, column_stack (or .T) puts them in columns. reshape(-1, 1) makes a column so it broadcasts across a 2 × N array.'
+},
+{
+  id: 'd-band', group: 'arr', title: 'Build a banded matrix',
+  params: r => ({ n: r.int(5, 8), d: r.pick([2, 3, 4]), o: r.pick([-1, 1, 2]) }),
+  prompt: p => `<p>Define the ${p.n} × ${p.n} matrix <code>T</code> with ${p.d} on the diagonal, ${p.o} directly above and directly below the diagonal, and 0 elsewhere. Do it without typing the matrix out.</p>`,
+  given: [],
+  defines: [['T', 'numpy array', 'banded matrix']],
+  starter: py`import numpy as np
+
+T = ...
+`,
+  setup: py`pass
+`,
+  check: py`p = S['PARAMS']
+n, d, o = p['n'], p['d'], p['o']
+G.expect('T', d * np.eye(n) + o * np.eye(n, k=1) + o * np.eye(n, k=-1), 10)
+`,
+  solution: p => py`import numpy as np
+
+n = ${p.n}
+T = ${p.d} * np.eye(n) + ${p.o} * np.eye(n, k=1) + ${p.o} * np.eye(n, k=-1)
+
+# loop version:
+# T = np.zeros((n, n))
+# for i in range(n):
+#     T[i, i] = ${p.d}
+#     if i > 0: T[i, i-1] = ${p.o}
+#     if i < n - 1: T[i, i+1] = ${p.o}
+`,
+  idea: 'np.eye(n, k=1) is ones one step above the diagonal, k=-1 one step below. A loop with the two edge checks works too.'
+},
+
+/* ---------- Masks & reductions ---------- */
+{
+  id: 'd-mask', group: 'mask', title: 'Zero out small entries',
+  params: r => ({ tol: r.pick([0.5, 1, 1.5, 2]) }),
+  prompt: p => `<p>Define <code>f</code>: a copy of <code>c</code> where every entry with absolute value below ${p.tol} becomes 0. Also define <code>kept</code> (number of nonzero entries in <code>f</code>, an int) and <code>biggest</code> (largest absolute value in <code>c</code>).</p>`,
+  given: [['c', '1d numpy array', 'coefficients']],
+  defines: [['f', '1d numpy array', 'filtered copy'], ['kept', 'int', 'nonzero count'], ['biggest', 'float', 'max |c|']],
+  starter: py`import numpy as np
+
+f = ...
+kept = ...
+biggest = ...
+`,
+  setup: py`c = np.round(np.random.randn(30) * 1.6, 3)
+`,
+  check: py`c = S['c']
+t = S['PARAMS']['tol']
+f = c.copy()
+f[np.abs(f) < t] = 0
+G.expect('f', f, 5)
+G.expect('kept', int(np.count_nonzero(f)), 3)
+G.expect('biggest', float(np.max(np.abs(c))), 2)
+`,
+  solution: p => py`import numpy as np
+
+f = c.copy()
+f[np.abs(f) < ${p.tol}] = 0
+kept = int(np.count_nonzero(f))
+biggest = np.max(np.abs(c))
+`,
+  idea: 'A comparison makes a boolean array; indexing with it selects those entries, and assigning sets only them.'
+},
+{
+  id: 'd-axis', group: 'mask', title: 'Sums along an axis',
+  params: r => ({}),
+  prompt: p => `<p>For the 2d array <code>W</code>, define <code>row_sums</code>, <code>col_sums</code>, <code>top_row</code> (index of the row with the largest sum, an int) and <code>total</code>.</p>`,
+  given: [['W', 'numpy array', 'm × n']],
+  defines: [['row_sums', '1d numpy array', 'one per row'], ['col_sums', '1d numpy array', 'one per column'], ['top_row', 'int', 'argmax of row sums'], ['total', 'float', 'sum of everything']],
+  starter: py`import numpy as np
+
+row_sums = ...
+col_sums = ...
+top_row = ...
+total = ...
+`,
+  setup: py`W = np.random.randint(0, 6, size=(int(np.random.randint(4, 7)), int(np.random.randint(3, 6)))).astype(float)
+`,
+  check: py`W = S['W']
+G.expect('row_sums', W.sum(axis=1), 3)
+G.expect('col_sums', W.sum(axis=0), 3)
+G.expect('top_row', int(np.argmax(W.sum(axis=1))), 2)
+G.expect('total', float(W.sum()), 2)
+`,
+  solution: p => py`import numpy as np
+
+row_sums = np.sum(W, axis=1)
+col_sums = np.sum(W, axis=0)
+top_row = int(np.argmax(row_sums))
+total = np.sum(W)
+`,
+  idea: 'axis=1 collapses the columns, giving one number per row. axis=0 gives one per column.'
+},
+{
+  id: 'd-all', group: 'mask', title: 'Check every entry',
+  params: r => ({}),
+  prompt: p => `<p>Write <code>all_positive(M)</code> that returns <code>True</code> when every entry of the array is greater than 0, and <code>False</code> otherwise. Also define <code>num_zero</code>: how many entries of the given <code>M</code> equal 0 (an int).</p>`,
+  given: [['M', 'numpy array', 'example matrix']],
+  defines: [['all_positive', 'function', 'returns a bool'], ['num_zero', 'int', 'zero entries in M']],
+  starter: py`import numpy as np
+
+def all_positive(M):
+    pass
+
+num_zero = ...
+`,
+  setup: py`M = np.random.randint(0, 4, size=(5, 5)).astype(float)
+`,
+  check: py`cases = [(S['M'],), (np.ones((3, 3)),), (np.array([[1.0, 0.0], [2.0, 3.0]]),), (np.array([[2.0, -1.0], [1.0, 1.0]]),), (np.random.rand(6, 6) + 0.1,)]
+G.expect_fn('all_positive', cases, lambda M: bool(np.all(M > 0)), 6)
+G.expect('num_zero', int(np.count_nonzero(S['M'] == 0)), 4)
+`,
+  solution: p => py`import numpy as np
+
+def all_positive(M):
+    return bool(np.all(M > 0))
+
+num_zero = int(np.count_nonzero(M == 0))
+`,
+  idea: 'np.all(M > 0) collapses a boolean array to one True/False. Counting True values with count_nonzero counts matches.'
+},
+
+/* ---------- Transforms ---------- */
+{
+  id: 'd-rad', group: 'geo', title: 'Rotation matrix from degrees',
+  params: r => ({ deg: r.pick([30, 45, 60, 120, 135, 210, 300]) }),
+  prompt: p => `<p>Define <code>R</code>, the 2 × 2 matrix that rotates points ${p.deg}° counterclockwise about the origin, and <code>moved</code> = <code>R</code> applied to every column of <code>pts</code>.</p>`,
+  given: [['pts', 'numpy array', '2 × N points']],
+  defines: [['R', 'numpy array', '2 × 2'], ['moved', 'numpy array', '2 × N']],
+  starter: py`import numpy as np
+
+R = ...
+moved = ...
+`,
+  setup: py`pts = np.random.randn(2, 12)
+`,
+  check: py`t = np.radians(S['PARAMS']['deg'])
+R = np.array([[np.cos(t), -np.sin(t)], [np.sin(t), np.cos(t)]])
+G.expect('R', R, 6)
+G.expect('moved', R @ S['pts'], 4)
+`,
+  solution: p => py`import numpy as np
+
+t = ${p.deg} * np.pi / 180
+R = np.array([[np.cos(t), -np.sin(t)],
+              [np.sin(t),  np.cos(t)]])
+moved = R @ pts
+`,
+  idea: 'Convert to radians first. Columns of R are where (1, 0) and (0, 1) land: (cos, sin) and (−sin, cos).'
+},
+{
+  id: 'd-compose', group: 'geo', title: 'Order of composition',
+  params: r => ({ first: r.pick(['A', 'B']) }),
+  prompt: p => `<p>Apply <code>${p.first}</code> to the points first, then <code>${p.first === 'A' ? 'B' : 'A'}</code>. Store the result in <code>out</code>, and the single combined matrix in <code>Cm</code>.</p>`,
+  given: [['A', 'numpy array', '2 × 2'], ['B', 'numpy array', '2 × 2'], ['pts', 'numpy array', '2 × N']],
+  defines: [['out', 'numpy array', '2 × N'], ['Cm', 'numpy array', 'combined 2 × 2 matrix']],
+  starter: py`import numpy as np
+
+Cm = ...
+out = ...
+`,
+  setup: py`A = np.random.randint(-3, 4, size=(2, 2)).astype(float)
+B = np.random.randint(-3, 4, size=(2, 2)).astype(float)
+while np.allclose(A @ B, B @ A):
+    B = np.random.randint(-3, 4, size=(2, 2)).astype(float)
+pts = np.random.randn(2, 10)
+`,
+  check: py`A, B = S['A'], S['B']
+Cm = B @ A if S['PARAMS']['first'] == 'A' else A @ B
+G.expect('Cm', Cm, 5)
+G.expect('out', Cm @ S['pts'], 5)
+`,
+  solution: p => py`import numpy as np
+
+Cm = ${p.first === 'A' ? 'B @ A' : 'A @ B'}     # the first one sits next to the points
+out = Cm @ pts
+`,
+  idea: 'Read right to left: in X @ Y @ pts, Y acts first. So "first Y, then X" is X @ Y.'
+},
+{
+  id: 'd-colvec', group: 'geo', title: 'Shift every point',
+  params: r => ({ cx: r.int(-5, 5), cy: r.int(-5, 5) }),
+  prompt: p => `<p>Subtract the point <code>(${p.cx}, ${p.cy})</code> from every column of <code>pts</code> and store it as <code>shifted</code>. Then define <code>back</code> by adding it again.</p>`,
+  given: [['pts', 'numpy array', '2 × N points']],
+  defines: [['shifted', 'numpy array', '2 × N'], ['back', 'numpy array', '2 × N']],
+  starter: py`import numpy as np
+
+shifted = ...
+back = ...
+`,
+  setup: py`pts = np.random.randn(2, 9) * 3
+`,
+  check: py`p = S['PARAMS']
+c = np.array([[p['cx']], [p['cy']]], dtype=float)
+G.expect('shifted', S['pts'] - c, 6)
+G.expect('back', S['pts'], 4)
+`,
+  solution: p => py`import numpy as np
+
+c = np.array([[${p.cx}],
+              [${p.cy}]])     # 2 × 1 column
+shifted = pts - c
+back = shifted + c
+`,
+  idea: 'A 2 × 1 column broadcasts across all N columns. A flat array of length 2 does not line up with a 2 × N array.'
+},
+
+/* ---------- Solving ---------- */
+{
+  id: 'd-inv', group: 'solve', title: 'Solve without solve()',
+  banned: ['numpy.linalg.solve', 'scipy.linalg.solve'],
+  params: r => ({}),
+  prompt: p => `<p>Solve <code>A x = b</code> and <code>A X = B</code> (several right-hand sides, one per column of <code>B</code>). <code>np.linalg.solve</code> is blocked.</p>`,
+  given: [['A', 'numpy array', 'n × n invertible'], ['b', '1d numpy array', 'length n'], ['B', 'numpy array', 'n × k']],
+  defines: [['x', '1d numpy array', 'solution'], ['X', 'numpy array', 'n × k solutions']],
+  starter: py`import numpy as np
+
+x = ...
+X = ...
+`,
+  setup: py`n = int(np.random.randint(3, 6))
+A = np.random.randn(n, n) + n * np.eye(n)
+b = np.random.randn(n)
+B = np.random.randn(n, 3)
+del n
+`,
+  check: py`Ai = ORIG['inv'](S['A'])
+G.expect('x', Ai @ S['b'], 5)
+G.expect('X', Ai @ S['B'], 5)
+`,
+  solution: p => py`import numpy as np
+
+Ainv = np.linalg.inv(A)
+x = Ainv @ b
+X = Ainv @ B
+`,
+  idea: 'x = inv(A) @ b. The same inverse handles a whole matrix of right-hand sides at once.'
+},
+{
+  id: 'd-lu', group: 'solve', title: 'The LU recipe',
+  banned: ['numpy.linalg.solve', 'numpy.linalg.inv', 'scipy.linalg.solve', 'scipy.linalg.inv'],
+  params: r => ({}),
+  prompt: p => `<p>Use <code>scipy.linalg.lu</code> and <code>scipy.linalg.solve_triangular</code> to solve <code>A x = b</code>. Store <code>P</code>, <code>L</code>, <code>U</code> and the solution <code>x</code>. <code>solve</code> and <code>inv</code> are blocked.</p>`,
+  given: [['A', 'numpy array', 'n × n'], ['b', '1d numpy array', 'length n']],
+  defines: [['P', 'numpy array', 'permutation'], ['L', 'numpy array', 'lower triangular'], ['U', 'numpy array', 'upper triangular'], ['x', '1d numpy array', 'solution']],
+  starter: py`import numpy as np
+import scipy.linalg as sla
+
+P, L, U = ...
+x = ...
+`,
+  setup: py`n = int(np.random.randint(3, 6))
+A = np.random.randint(-5, 6, size=(n, n)).astype(float) + 6 * np.eye(n)
+b = np.random.randint(-9, 10, size=n).astype(float)
+del n
+`,
+  check: py`P, L, U = ORIG['lu'](S['A'])
+G.expect('P', P, 1)
+G.expect('L', L, 2)
+G.expect('U', U, 2)
+G.expect('x', ORIG['solve'](S['A'], S['b']), 5)
+`,
+  solution: p => py`import numpy as np
+import scipy.linalg as sla
+
+P, L, U = sla.lu(A)                                   # A = P @ L @ U
+y = sla.solve_triangular(L, P.T @ b, lower=True)      # L y = P^T b
+x = sla.solve_triangular(U, y)                        # U x = y
+`,
+  idea: 'A = P L U, so L U x = Pᵀ b. Forward-solve with L (lower=True), then back-solve with U.'
+},
+{
+  id: 'd-fwd', group: 'solve', title: 'One substitution loop',
+  banned: ['numpy.linalg.solve', 'numpy.linalg.inv', 'scipy.linalg.solve', 'scipy.linalg.inv', 'scipy.linalg.solve_triangular'],
+  params: r => ({}),
+  prompt: p => `<p><code>L</code> is lower triangular. Solve <code>L x = b</code> with a single loop: <code>x[i] = (b[i] − L[i, :i] @ x[:i]) / L[i, i]</code>. Store the result in <code>x</code>.</p>`,
+  given: [['L', 'numpy array', 'n × n lower triangular'], ['b', '1d numpy array', 'length n']],
+  defines: [['x', '1d numpy array', 'solution']],
+  starter: py`import numpy as np
+
+x = ...
+`,
+  setup: py`n = int(np.random.randint(4, 7))
+L = np.tril(np.random.randint(-3, 4, size=(n, n))).astype(float)
+np.fill_diagonal(L, np.random.randint(1, 5, size=n))
+b = np.random.randint(-9, 10, size=n).astype(float)
+del n
+`,
+  check: py`G.expect('x', ORIG['solve'](S['L'], S['b']), 10)
+`,
+  solution: p => py`import numpy as np
+
+n = len(b)
+x = np.zeros(n)
+for i in range(n):
+    x[i] = (b[i] - L[i, :i] @ x[:i]) / L[i, i]
+`,
+  idea: 'Each row only uses x values already found. For upper triangular, loop i from n-1 down and use U[i, i+1:] @ x[i+1:].'
+},
+
+/* ---------- Graphs ---------- */
+{
+  id: 'd-walks', group: 'graph', title: 'Count walks',
+  params: r => ({ k: r.pick([2, 3, 4]), i: r.int(0, 9), j: r.int(0, 9) }),
+  prompt: p => `<p><code>A</code> is a 10 × 10 adjacency matrix (<code>A[i, j] = 1</code> means an edge from j to i). Define <code>w</code>: the number of walks of length exactly ${p.k} from node ${p.j} to node ${p.i} (an int), and <code>Ak</code> = A<sup>${p.k}</sup>.</p>`,
+  given: [['A', 'numpy array', '10 × 10 adjacency']],
+  defines: [['Ak', 'numpy array', `A to the power k`], ['w', 'int', 'walks from j to i']],
+  starter: py`import numpy as np
+import numpy.linalg as la
+
+Ak = ...
+w = ...
+`,
+  setup: py`A = (np.random.rand(10, 10) < 0.3).astype(float)
+np.fill_diagonal(A, 0)
+`,
+  check: py`p = S['PARAMS']
+Ak = ORIG['matrix_power'](S['A'], p['k'])
+G.expect('Ak', Ak, 4)
+G.expect('w', int(Ak[p['i'], p['j']]), 6)
+`,
+  solution: p => py`import numpy as np
+import numpy.linalg as la
+
+Ak = la.matrix_power(A, ${p.k})
+w = int(Ak[${p.i}, ${p.j}])      # [to, from]
+`,
+  idea: 'Entry [i, j] of A^k counts walks of length k from j to i. With this column-is-from convention the index is [to, from].'
+},
+{
+  id: 'd-atmost', group: 'graph', title: 'Walks of length at most k',
+  params: r => ({ k: r.pick([2, 3, 4]) }),
+  prompt: p => `<p>For the adjacency matrix <code>A</code>, define <code>S_k</code> = A + A² + … + A<sup>${p.k}</sup> using a loop (it counts walks of length 1 through ${p.k}), and <code>reach_k</code> = (I + A)<sup>${p.k}</sup>.</p>`,
+  given: [['A', 'numpy array', 'n × n adjacency']],
+  defines: [['S_k', 'numpy array', 'sum of powers'], ['reach_k', 'numpy array', '(I + A)^k']],
+  starter: py`import numpy as np
+import numpy.linalg as la
+
+S_k = ...
+reach_k = ...
+`,
+  setup: py`n = int(np.random.randint(6, 10))
+T = np.triu((np.random.rand(n, n) < 0.3).astype(float), 1)
+A = T + T.T
+del T, n
+`,
+  check: py`A = S['A']
+k = S['PARAMS']['k']
+n = A.shape[0]
+Sk = sum(ORIG['matrix_power'](A, m) for m in range(1, k + 1))
+G.expect('S_k', Sk, 6)
+G.expect('reach_k', ORIG['matrix_power'](np.eye(n) + A, k), 4)
+`,
+  solution: p => py`import numpy as np
+import numpy.linalg as la
+
+n = A.shape[0]
+S_k = np.zeros((n, n))
+for m in range(1, ${p.k} + 1):
+    S_k = S_k + la.matrix_power(A, m)
+
+reach_k = la.matrix_power(np.eye(n) + A, ${p.k})
+`,
+  idea: 'Both have the same zero pattern off the diagonal: an entry is positive exactly when a walk of length at most k exists. (I+A)^k is the one-line test.'
+},
+{
+  id: 'd-reach', group: 'graph', title: 'Who can be reached',
+  params: r => ({ s: r.int(0, 11) }),
+  prompt: p => `<p><code>A</code> is the adjacency matrix of an undirected graph with 12 nodes. Define <code>reachable</code>: the number of nodes that can be reached from node ${p.s}, counting node ${p.s} itself (an int).</p>`,
+  given: [['A', 'numpy array', '12 × 12 adjacency']],
+  defines: [['reachable', 'int', 'size of the component of the start node']],
+  starter: py`import numpy as np
+import numpy.linalg as la
+
+reachable = ...
+`,
+  setup: py`n = 12
+lab = np.random.randint(0, 3, size=n)
+A = np.zeros((n, n))
+for a in range(n):
+    for b in range(a + 1, n):
+        if lab[a] == lab[b] and np.random.rand() < 0.45:
+            A[a, b] = A[b, a] = 1
+del lab, n, a, b
+`,
+  check: py`A = S['A']
+n = A.shape[0]
+R = ORIG['matrix_power'](np.eye(n) + A, n - 1)
+G.expect('reachable', int(np.count_nonzero(R[:, S['PARAMS']['s']])), 10)
+`,
+  solution: p => py`import numpy as np
+import numpy.linalg as la
+
+n = A.shape[0]
+R = la.matrix_power(np.eye(n) + A, n - 1)
+reachable = int(np.count_nonzero(R[:, ${p.s}]))
+`,
+  idea: 'Any reachable node is within n − 1 steps, so (I + A)^(n−1) has a nonzero in column s exactly for the nodes s can reach.'
+},
+{
+  id: 'd-null', group: 'graph', title: 'Components from an incidence matrix',
+  params: r => ({}),
+  prompt: p => `<p><code>D</code> is an edge-node incidence matrix (one row per edge, with −1 and +1 in the two endpoint columns). Using the given <code>nullspace</code> function, define <code>components</code> (number of connected components) and <code>rank</code> (<code>n − components</code>, where n is the number of nodes).</p>`,
+  given: [['D', 'numpy array', 'edges × n'], ['nullspace', 'function', 'columns are a basis of the nullspace']],
+  defines: [['components', 'int', 'connected components'], ['rank', 'int', 'rank of D']],
+  starter: py`import numpy as np
+
+components = ...
+rank = ...
+`,
+  setup: py`def nullspace(M, tol=1e-10):
+    u, s, vh = np.linalg.svd(M)
+    r = int((s > tol).sum())
+    return vh[r:].T.copy()
+n = int(np.random.randint(8, 14))
+k = int(np.random.randint(2, 5))
+lab = np.arange(n) % k
+rows = []
+for g in range(k):
+    m = list(np.where(lab == g)[0])
+    for a, b in zip(m[:-1], m[1:]):
+        r = np.zeros(n); r[a] = -1; r[b] = 1; rows.append(r)
+D = np.array(rows)
+ncomp = k
+del n, k, lab, rows, g, m, a, b, r
+`,
+  check: py`k = S['ncomp']
+G.expect('components', k, 6)
+G.expect('rank', S['D'].shape[1] - k, 4)
+`,
+  solution: p => py`import numpy as np
+
+components = nullspace(D).shape[1]
+rank = D.shape[1] - components
+`,
+  idea: 'D x = 0 exactly when x is constant on each component, so the nullspace has one dimension per component.'
+},
+
+/* ---------- Bases ---------- */
+{
+  id: 'd-orth', group: 'basis', title: 'Coordinates in an orthonormal basis',
+  params: r => ({}),
+  prompt: p => `<p>The columns of <code>B</code> are an orthonormal basis (the DCT basis). Define <code>c</code>, the coordinates of <code>x</code> in this basis, and <code>x_back</code>, the vector rebuilt from <code>c</code>.</p>`,
+  given: [['B', 'numpy array', 'n × n, orthonormal columns'], ['x', '1d numpy array', 'length n']],
+  defines: [['c', '1d numpy array', 'coordinates'], ['x_back', '1d numpy array', 'B times c']],
+  starter: py`import numpy as np
+
+c = ...
+x_back = ...
+`,
+  setup: py`n = int(np.random.choice([8, 16]))
+j = np.arange(n).reshape(-1, 1)
+k = np.arange(n).reshape(1, -1)
+B = np.cos(np.pi * (2 * j + 1) * k / (2 * n))
+B[:, 0] *= np.sqrt(1 / n)
+B[:, 1:] *= np.sqrt(2 / n)
+x = np.random.randn(n)
+del n, j, k
+`,
+  check: py`c = S['B'].T @ S['x']
+G.expect('c', c, 6)
+G.expect('x_back', S['x'], 4)
+`,
+  solution: p => py`import numpy as np
+
+c = B.T @ x        # orthonormal: inverse = transpose
+x_back = B @ c
+`,
+  idea: 'x = B c. For orthonormal columns inv(B) = B.T, so c = B.T @ x. No inverse needed.'
+},
+{
+  id: 'd-gen', group: 'basis', title: 'Coordinates in any basis',
+  params: r => ({}),
+  prompt: p => `<p>The columns of <code>B</code> and <code>C</code> are two bases (not orthonormal). Define <code>c</code> (coordinates of <code>x</code> in basis B) and <code>P_CB</code> (converts B-coordinates into C-coordinates).</p>`,
+  given: [['B', 'numpy array', 'n × n basis'], ['C', 'numpy array', 'n × n basis'], ['x', '1d numpy array', 'a vector']],
+  defines: [['c', '1d numpy array', 'B-coordinates of x'], ['P_CB', 'numpy array', 'B → C']],
+  starter: py`import numpy as np
+
+c = ...
+P_CB = ...
+`,
+  setup: py`def mk():
+    while True:
+        M = np.random.randint(-3, 4, size=(3, 3)).astype(float)
+        if abs(np.linalg.det(M)) > 2:
+            return M
+B = mk()
+C = mk()
+x = np.random.randint(-6, 7, size=3).astype(float)
+del mk
+`,
+  check: py`G.expect('c', ORIG['inv'](S['B']) @ S['x'], 5)
+G.expect('P_CB', ORIG['inv'](S['C']) @ S['B'], 5)
+`,
+  solution: p => py`import numpy as np
+
+c = np.linalg.inv(B) @ x
+P_CB = np.linalg.inv(C) @ B     # B-coords -> standard -> C-coords
+`,
+  idea: 'B-coordinates → standard: multiply by B. Standard → C-coordinates: multiply by inv(C). Chain them right to left.'
+},
+{
+  id: 'd-2d', group: 'basis', title: '2D transform of a block',
+  params: r => ({ pct: r.pick([10, 20, 30]) }),
+  prompt: p => `<p>For the 8 × 8 <code>chunk</code> and DCT matrix <code>B</code> (8 × 8), define <code>Cc</code> = the 2D DCT coefficients, <code>Cf</code> = <code>Cc</code> with entries below ${p.pct}% of its largest absolute value set to 0, and <code>approx</code> = the chunk rebuilt from <code>Cf</code>.</p>`,
+  given: [['chunk', 'numpy array', '8 × 8'], ['B', 'numpy array', '8 × 8 DCT basis']],
+  defines: [['Cc', 'numpy array', 'B.T chunk B'], ['Cf', 'numpy array', 'thresholded'], ['approx', 'numpy array', 'rebuilt chunk']],
+  starter: py`import numpy as np
+
+Cc = ...
+Cf = ...
+approx = ...
+`,
+  setup: py`n = 8
+j = np.arange(n).reshape(-1, 1)
+k = np.arange(n).reshape(1, -1)
+B = np.cos(np.pi * (2 * j + 1) * k / (2 * n))
+B[:, 0] *= np.sqrt(1 / n)
+B[:, 1:] *= np.sqrt(2 / n)
+chunk = np.round(np.random.rand(8, 8) * 255)
+del n, j, k
+`,
+  check: py`B = S['B']
+Cc = B.T @ S['chunk'] @ B
+Cf = Cc.copy()
+Cf[np.abs(Cf) < S['PARAMS']['pct'] / 100 * np.max(np.abs(Cc))] = 0
+G.expect('Cc', Cc, 4)
+G.expect('Cf', Cf, 3)
+G.expect('approx', B @ Cf @ B.T, 3)
+`,
+  solution: p => py`import numpy as np
+
+Cc = B.T @ chunk @ B
+Cf = Cc.copy()
+Cf[np.abs(Cf) < ${p.pct / 100} * np.max(np.abs(Cc))] = 0
+approx = B @ Cf @ B.T
+`,
+  idea: 'Transform rows and columns: B.T on the left, B on the right. Undo with B on the left, B.T on the right.'
+}
+];
+
+const USES = {
+  'l1-stats': ['d-slice', 'd-tuple'],
+  'l1-runmax': ['d-tuple', 'd-slice'],
+  'l2-missing': ['d-matmul'],
+  'l2-portfolio': ['d-matmul', 'd-axis'],
+  'l2-angle': ['d-rad', 'd-tuple'],
+  'l3-reflect': ['d-build', 'd-compose'],
+  'l3-unmix': ['d-stack', 'd-inv'],
+  'l3-rotate': ['d-rad', 'd-colvec', 'd-compose'],
+  'l4-subs': ['d-fwd', 'd-backloop'],
+  'l4-rod': ['d-band', 'd-inv'],
+  'l4-springs': ['d-band', 'd-lu'],
+  'l4-circuit': ['d-index', 'd-inv'],
+  'l5-flights': ['d-walks', 'd-atmost'],
+  'l5-components': ['d-null', 'd-reach'],
+  'l5-indegree': ['d-axis', 'd-walks'],
+  'l5-separation': ['d-atmost', 'd-all'],
+  'l6-denoise': ['d-orth', 'd-mask'],
+  'l6-compress': ['d-2d', 'd-index'],
+  'l6-basis': ['d-gen', 'd-orth']
+};
+
+</script>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const QBY = Object.fromEntries(QUESTIONS.concat(DRILLS).map(q => [q.id, q]));
+DRILLS.forEach(d => d.kind = 'drill');
+QUESTIONS.forEach(q => { q.kind = 'app'; q.uses = USES[q.id] || []; });
+const PTS = 10;
+
+/* storage */
+const KEY = 'm257-quiz-sim-v1';
+let store = { best: {}, tries: {}, code: {}, seeds: {}, exam: null, history: [], streak: 0 };
+try { const raw = localStorage.getItem(KEY); if (raw) store = Object.assign(store, JSON.parse(raw)); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} };
+const best = id => store.best[id] || 0;
+const tries = id => store.tries[id] || 0;
+const done = id => best(id) >= PTS;
+
+/* rng */
+function rng(seed) {
+  let a = seed >>> 0;
+  const f = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  return { f, int: (lo, hi) => lo + Math.floor(f() * (hi - lo + 1)), pick: arr => arr[Math.floor(f() * arr.length)] };
+}
+const newSeed = () => 1000 + Math.floor(Math.random() * 899000);
+function paramsFor(q, seed) { let p = q.params(rng(seed)); if (q.fix) p = q.fix(p); return p; }
+const seedOf = id => store.seeds[id] || (store.seeds[id] = newSeed());
+
+/* python */
+let worker = null, ready = false, pending = new Map(), runId = 0, timer = null, rtState = ['load', 'starting python'];
+function startWorker() {
+  ready = false; setRt('load', 'starting python');
+  try { worker = new Worker('worker.js'); } catch (e) { setRt('bad', 'python unavailable'); return; }
+  worker.onmessage = ev => {
+    const m = ev.data;
+    if (m.type === 'status') setRt('load', m.text.toLowerCase());
+    else if (m.type === 'ready') { ready = true; setRt('ok', 'python ready'); refreshRun(); }
+    else if (m.type === 'fatal') { setRt('bad', 'python failed to load'); console.error(m.text); }
+    else if (m.type === 'result') { const cb = pending.get(m.id); if (cb) { pending.delete(m.id); clearTimeout(timer); cb(m.result); } }
+  };
+  worker.onerror = e => { setRt('bad', 'python failed to load'); console.error(e.message); };
+}
+function setRt(k, t) { rtState = [k, t]; const el = $('#rt'); if (el) { el.className = 'rt ' + k; el.lastChild.textContent = t; } }
+const rtHTML = () => `<span class="rt ${rtState[0]}" id="rt"><i></i><span>${esc(rtState[1])}</span></span>`;
+function runPython(q, seed, code) {
+  return new Promise(resolve => {
+    const id = ++runId; pending.set(id, resolve);
+    worker.postMessage({ id, setup: q.setup, check: q.check, user: code, seed, params: paramsFor(q, seed), banned: q.banned || [] });
+    timer = setTimeout(() => {
+      if (!pending.has(id)) return;
+      pending.delete(id); worker.terminate();
+      resolve({ error: 'Stopped after 20 seconds. Probably a loop that never ends.', items: [], score: 0, stdout: '' });
+      startWorker();
+    }, 20000);
+  });
+}
+
+/* editor */
+let editor = null, fallback = null;
+const isDark = () => { const t = document.documentElement.getAttribute('data-theme'); return t ? t === 'dark' : !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches); };
+const aceTheme = () => isDark() ? 'ace/theme/tomorrow_night' : 'ace/theme/tomorrow';
+function mountEditor(el, value, onChange) {
+  editor = null; fallback = null;
+  if (window.ace) {
+    try {
+      ace.config.set('basePath', 'https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/');
+      editor = ace.edit(el, { mode: 'ace/mode/python', theme: aceTheme(), fontSize: 14, tabSize: 4, useSoftTabs: true, showPrintMargin: false, showGutter: false, highlightActiveLine: false, useWorker: false, fontFamily: '"Geist Mono", ui-monospace, Menlo, monospace' });
+      editor.renderer.setPadding(14); editor.renderer.setScrollMargin(12, 12);
+      editor.container.style.background = 'transparent';
+      editor.session.setValue(value);
+      editor.session.on('change', () => onChange(editor.getValue()));
+      editor.commands.addCommand({ name: 'run', bindKey: { win: 'Ctrl-Enter', mac: 'Cmd-Enter' }, exec: () => grade() });
+      return;
+    } catch (e) { editor = null; }
+  }
+  const ta = document.createElement('textarea');
+  ta.id = 'editorFallback'; ta.className = el.className; ta.spellcheck = false; ta.value = value;
+  ta.addEventListener('input', () => onChange(ta.value));
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Tab') { e.preventDefault(); ta.setRangeText('    ', ta.selectionStart, ta.selectionEnd, 'end'); onChange(ta.value); }
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); grade(); }
+  });
+  el.replaceWith(ta); fallback = ta;
+}
+const getCode = () => editor ? editor.getValue() : fallback ? fallback.value : '';
+function setCode(v) { if (editor) editor.session.setValue(v); else if (fallback) fallback.value = v; }
+const retheme = () => editor && editor.setTheme(aceTheme());
+if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', retheme);
+new MutationObserver(retheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+/* confetti */
+function burst(x, y) {
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const c = document.createElement('canvas'); c.className = 'fx';
+  const dpr = window.devicePixelRatio || 1; c.width = innerWidth * dpr; c.height = innerHeight * dpr; c.style.width = innerWidth + 'px'; c.style.height = innerHeight + 'px';
+  document.body.appendChild(c);
+  const g = c.getContext('2d'); g.scale(dpr, dpr);
+  const cs = getComputedStyle(document.documentElement);
+  const cols = [cs.getPropertyValue('--accent'), cs.getPropertyValue('--ok'), cs.getPropertyValue('--fg')].map(s => s.trim());
+  const ps = Array.from({ length: 36 }, (_, i) => { const a = Math.random() * Math.PI * 2, s = 3 + Math.random() * 6; return { x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 4, r: 2 + Math.random() * 3, c: cols[i % 3] }; });
+  let f = 0;
+  (function step() {
+    g.clearRect(0, 0, innerWidth, innerHeight);
+    ps.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.35; p.vx *= 0.98; g.globalAlpha = Math.max(0, 1 - f / 45); g.fillStyle = p.c; g.beginPath(); g.arc(p.x, p.y, p.r, 0, 7); g.fill(); });
+    if (++f < 45) requestAnimationFrame(step); else c.remove();
+  })();
+}
+
+/* state */
+let view = 'home', mode = 'drills', cur = 0, list = [];
+let last = null, showSol = false, showHint = false, busy = false, justPassed = false;
+const isMock = () => mode === 'mock';
+const LABEL = q => q.kind === 'drill' ? GROUPS[q.group] : LABS[q.lab];
+const dotCls = (b, t) => !t ? '' : b >= PTS ? 'full' : 'part';
+function nextUnsolved() {
+  const d = DRILLS.find(q => !done(q.id)); if (d) return ['drills', d.id];
+  const a = QUESTIONS.find(q => !done(q.id)); if (a) return ['apps', a.id];
+  return null;
+}
+
+/* home */
+function renderHome() {
+  view = 'home'; closeDrawer();
+  const dDone = DRILLS.filter(q => done(q.id)).length, aDone = QUESTIONS.filter(q => done(q.id)).length;
+  const nu = nextUnsolved();
+  const ex = store.exam && !store.exam.done;
+  const hist = (store.history || []).slice(-6);
+  const dots = (arr, m) => `<div class="dots">${arr.map(q => `<button type="button" class="d ${dotCls(best(q.id), tries(q.id))}" data-m="${m}" data-id="${q.id}" title="${esc(q.title)}" aria-label="${esc(q.title)}"></button>`).join('')}</div>`;
+  $('#app').innerHTML = `<main class="page">
+    <div class="top"><span>wed 10/28 · 6:15 pm · chem annex</span><span class="sp"></span>${rtHTML()}<button type="button" class="link" id="refBtn">reference</button></div>
+    <section class="hero">
+      <h1>python quiz 1<span>.</span></h1>
+      <p>Learn each move, then put moves together. Real NumPy grades every run.</p>
+    </section>
+    <div>${nu ? `<button type="button" class="go" id="go">${nu[0] === 'drills' ? 'Continue' : 'Next problem'} <small>${esc(QBY[nu[1]].title)}</small> →</button>` : `<button type="button" class="go" id="mockGo">Everything solved. Try a mock quiz →</button>`}</div>
+    <section class="tracks">
+      <div class="track">
+        <div class="track-h"><button type="button" data-open="drills">Moves</button><span class="n">${dDone}/${DRILLS.length}</span></div>
+        ${dots(DRILLS, 'drills')}
+      </div>
+      <div class="track">
+        <div class="track-h"><button type="button" data-open="apps">Problems</button><span class="n">${aDone}/${QUESTIONS.length}</span></div>
+        ${dots(QUESTIONS, 'apps')}
+      </div>
+      <div class="track">
+        <div class="track-h"><button type="button" id="mock">${ex ? 'Resume mock quiz' : 'Mock quiz'}</button><span class="n">4 problems · no hints</span></div>
+        ${hist.length ? `<div class="past">${hist.map(h => `${h.score}/${h.max}`).join('  ·  ')}</div>` : ''}
+      </div>
+    </section>
+  </main>`;
+  if ($('#go')) $('#go').onclick = () => openList(nu[0], nu[1]);
+  if ($('#mockGo')) $('#mockGo').onclick = startExam;
+  $('#mock').onclick = () => ex ? openExam() : startExam();
+  document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => { const m = b.dataset.open; const src = m === 'drills' ? DRILLS : QUESTIONS; const f = src.find(q => !done(q.id)) || src[0]; openList(m, f.id); });
+  document.querySelectorAll('.d').forEach(b => b.onclick = () => openList(b.dataset.m, b.dataset.id));
+  $('#refBtn').onclick = toggleDrawer;
+}
+
+function openList(m, id) {
+  mode = m;
+  list = (m === 'drills' ? DRILLS : QUESTIONS).map(q => ({ id: q.id, seed: seedOf(q.id) }));
+  save();
+  cur = Math.max(0, list.findIndex(x => x.id === id));
+  last = null; showSol = showHint = justPassed = false;
+  renderWork(); window.scrollTo({ top: 0 });
+}
+
+/* mock */
+function startExam() {
+  const labs = [1, 2, 3, 4, 5, 6].sort(() => Math.random() - 0.5).slice(0, 4).sort();
+  const qs = labs.map(l => { const pool = QUESTIONS.filter(q => q.lab === l); return { id: pool[Math.floor(Math.random() * pool.length)].id, seed: newSeed() }; });
+  store.exam = { qs, done: false, best: {}, tries: {}, code: {}, last: {} };
+  save(); openExam();
+}
+function openExam() { mode = 'mock'; list = store.exam.qs; cur = 0; last = store.exam.last[0] || null; showSol = showHint = justPassed = false; renderWork(); window.scrollTo({ top: 0 }); }
+function finishExam() {
+  const ex = store.exam; if (!ex || ex.done) return;
+  ex.done = true;
+  store.history = (store.history || []).concat([{ at: Date.now(), score: ex.qs.reduce((s, _, i) => s + (ex.best[i] || 0), 0), max: ex.qs.length * PTS }]).slice(-20);
+  save(); renderSummary();
+}
+
+/* work */
+const loadCode = i => { const q = QBY[list[i].id]; const c = isMock() ? store.exam.code[i] : store.code[q.id]; return c != null ? c : q.starter; };
+function storeCode(v) { if (isMock()) { if (!store.exam.done) store.exam.code[cur] = v; } else store.code[list[cur].id] = v; clearTimeout(storeCode.t); storeCode.t = setTimeout(save, 400); }
+const bestAt = i => isMock() ? (store.exam.best[i] || 0) : best(list[i].id);
+const triesAt = i => isMock() ? (store.exam.tries[i] || 0) : tries(list[i].id);
+
+function renderWork() {
+  view = 'work';
+  const x = list[cur], q = QBY[x.id], p = paramsFor(q, x.seed), learn = !isMock();
+  const passed = learn && last && last.score >= PTS;
+  const vars = rows => rows.map(r => `<span class="v" title="${esc(r[2])}"><code>${esc(r[0])}</code><span>${esc(r[1])}</span></span>`).join('');
+  $('#app').innerHTML = `<main class="page work">
+    <div class="bar">
+      <button type="button" class="link" id="back">← ${isMock() ? 'leave' : 'home'}</button>
+      <span class="sp"></span>
+      ${learn ? `<span class="streak">streak <b>${store.streak || 0}</b></span>` : `<button type="button" class="link" id="finish">finish quiz</button>`}
+      ${rtHTML()}
+      <button type="button" class="link" id="refBtn">reference</button>
+    </div>
+    <div class="dots navdots" aria-label="Items">${list.map((it, i) => `<button type="button" class="d ${dotCls(bestAt(i), triesAt(i))} ${i === cur ? 'cur' : ''} ${i === cur && justPassed ? 'pop' : ''}" data-i="${i}" title="${esc(QBY[it.id].title)}" aria-label="${esc(QBY[it.id].title)}"></button>`).join('')}</div>
+    <section class="q">
+      <div class="eyebrow">${isMock() ? `problem ${cur + 1} of ${list.length}` : esc(LABEL(q).toLowerCase())}${q.kind === 'app' && learn ? ` · uses ${q.uses.map(u => `<button type="button" class="link" data-drill="${u}" style="font-size:13px;text-decoration:underline;text-underline-offset:3px">${esc(QBY[u].title.toLowerCase())}</button>`).join(', ')}` : ''}</div>
+      <h1>${esc(q.title)}</h1>
+    </section>
+    <section class="prompt">${q.prompt(p)}</section>
+    <div class="io">
+      ${q.given.length ? `<span class="k">given</span><div class="vs">${vars(q.given)}</div>` : ''}
+      <span class="k">define</span><div class="vs">${vars(q.defines)}</div>
+    </div>
+    <div class="ed"><div id="editor" class="${q.kind === 'drill' ? 'short' : ''}"></div></div>
+    <div class="row">
+      <button type="button" class="run" id="run">run <small>⌘↵</small></button>
+      ${learn && q.hint ? `<button type="button" class="link" id="hintBtn">hint</button>` : ''}
+      ${learn ? `<button type="button" class="link" id="solBtn" ${triesAt(cur) ? '' : 'disabled title="Run once first"'}>solution</button><button type="button" class="link" id="varBtn">new numbers</button>` : ''}
+      <button type="button" class="link" id="resetBtn">reset</button>
+    </div>
+    <section class="res" id="res">${resultHTML(last)}</section>
+    ${passed ? `<section class="idea"><div><div class="lbl">${q.kind === 'drill' ? 'remember' : 'solved'}</div><p>${esc(q.kind === 'drill' ? q.idea : 'Run new numbers once more to be sure, or keep going.')}</p></div><button type="button" class="next" id="nextHot">${cur < list.length - 1 ? 'next' : 'home'} →<small>↵</small></button></section>` : ''}
+    ${showHint && learn ? `<section class="extra"><div class="hint">${esc(q.hint)}</div></section>` : ''}
+    ${showSol && learn ? `<section class="extra"><pre>${esc(q.solution(p))}</pre><div><button type="button" class="link" id="useSol">use this</button></div></section>` : ''}
+  </main>`;
+  mountEditor($('#editor'), loadCode(cur), storeCode);
+  if (isMock() && store.exam.done && editor) editor.setReadOnly(true);
+  $('#back').onclick = renderHome;
+  $('#run').onclick = grade;
+  $('#resetBtn').onclick = resetConfirm;
+  $('#refBtn').onclick = toggleDrawer;
+  document.querySelectorAll('.navdots .d').forEach(b => b.onclick = () => go(Number(b.dataset.i)));
+  document.querySelectorAll('[data-drill]').forEach(b => b.onclick = () => openList('drills', b.dataset.drill));
+  if ($('#finish')) $('#finish').onclick = finishConfirm;
+  if ($('#hintBtn')) $('#hintBtn').onclick = () => { showHint = !showHint; renderKeep(); };
+  if ($('#solBtn')) $('#solBtn').onclick = () => { showSol = !showSol; renderKeep(); };
+  if ($('#varBtn')) $('#varBtn').onclick = () => { x.seed = store.seeds[x.id] = newSeed(); save(); last = null; showSol = justPassed = false; renderKeep(); };
+  if ($('#useSol')) $('#useSol').onclick = () => { const v = q.solution(p); setCode(v); storeCode(v); };
+  if ($('#nextHot')) { $('#nextHot').onclick = () => cur < list.length - 1 ? go(cur + 1) : renderHome(); $('#nextHot').focus({ preventScroll: true }); }
+  justPassed = false;
+  refreshRun();
+}
+function renderKeep() { const k = getCode(); renderWork(); if (getCode() !== k) setCode(k); }
+function go(i) {
+  if (i < 0 || i >= list.length) return;
+  cur = i; showSol = showHint = justPassed = false;
+  last = isMock() ? (store.exam.last[i] || null) : null;
+  renderWork(); window.scrollTo({ top: 0 });
+}
+function refreshRun() {
+  const b = $('#run'); if (!b) return;
+  const locked = isMock() && store.exam && store.exam.done;
+  b.disabled = !ready || busy || locked;
+  b.firstChild.textContent = locked ? 'finished ' : busy ? 'running… ' : ready ? 'run ' : 'loading python… ';
+}
+function resetConfirm() {
+  const b = $('#resetBtn');
+  if (b.dataset.armed) { const v = QBY[list[cur].id].starter; setCode(v); storeCode(v); delete b.dataset.armed; b.textContent = 'reset'; return; }
+  b.dataset.armed = '1'; b.textContent = 'sure? click again';
+  setTimeout(() => { if (b.isConnected && b.dataset.armed) { delete b.dataset.armed; b.textContent = 'reset'; } }, 3000);
+}
+function finishConfirm() {
+  const b = $('#finish');
+  if (b.dataset.armed) return finishExam();
+  b.dataset.armed = '1'; b.textContent = 'click again to finish';
+  setTimeout(() => { if (b.isConnected && b.dataset.armed) { delete b.dataset.armed; b.textContent = 'finish quiz'; } }, 3000);
+}
+
+async function grade() {
+  if (!ready || busy || view !== 'work' || (isMock() && store.exam.done)) return;
+  busy = true; refreshRun();
+  const i = cur, x = list[i], q = QBY[x.id], code = getCode();
+  storeCode(code);
+  const res = await runPython(q, x.seed, code);
+  busy = false;
+  const wasDone = bestAt(i) >= PTS;
+  if (isMock()) {
+    store.exam.tries[i] = (store.exam.tries[i] || 0) + 1;
+    store.exam.best[i] = Math.max(store.exam.best[i] || 0, res.score || 0);
+    store.exam.last[i] = res;
+  } else {
+    store.tries[q.id] = tries(q.id) + 1;
+    store.best[q.id] = Math.max(best(q.id), res.score || 0);
+    store.streak = res.score >= PTS ? (store.streak || 0) + 1 : 0;
+  }
+  save();
+  if (view === 'work' && cur === i) {
+    last = res;
+    justPassed = res.score >= PTS && !wasDone;
+    renderKeep();
+    if (res.score >= PTS) { const r = $('#run').getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2); }
+    const t = $('.idea') || $('#res'); if (t) t.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  } else refreshRun();
+}
+function resultHTML(r) {
+  if (!r) return '';
+  const s = r.score || 0, ok = s >= PTS;
+  const items = r.items || [];
+  const bad = items.filter(i => !i.ok), good = items.filter(i => i.ok);
+  return `<div class="verdict ${ok ? 'ok' : 'no'}">${ok ? 'correct' : r.error ? 'error' : 'not yet'}<small>${s}/${PTS}</small></div>
+    ${r.error ? `<pre class="out err">${esc(r.error)}</pre>` : ''}
+    ${items.length && !ok ? `<ul class="fails">${bad.map(i => `<li>${esc(i.msg)}</li>`).join('')}${good.map(i => `<li class="ok">${esc(i.msg)}</li>`).join('')}</ul>` : ''}
+    ${r.trace ? `<pre class="out err">${esc(r.trace)}</pre>` : ''}
+    ${r.stdout ? `<div><div class="lbl">printed</div><pre class="out">${esc(r.stdout)}</pre></div>` : ''}`;
+}
+
+/* summary */
+function renderSummary() {
+  view = 'summary';
+  const ex = store.exam, total = ex.qs.reduce((s, _, i) => s + (ex.best[i] || 0), 0), max = ex.qs.length * PTS;
+  const weak = ex.qs.map((x, i) => (ex.best[i] || 0) < PTS ? QBY[x.id] : null).filter(Boolean);
+  $('#app').innerHTML = `<main class="page">
+    <div class="top"><button type="button" class="link" id="back">← home</button></div>
+    <section class="hero"><h1>${total}<span>/</span>${max}</h1><p>${total === max ? 'Clean sweep.' : 'Drill these next: ' + [...new Set(weak.flatMap(q => q.uses))].map(u => esc(QBY[u].title.toLowerCase())).join(', ') + '.'}</p></section>
+    <section class="tracks">${ex.qs.map((x, i) => `<div class="track-h"><span class="d ${dotCls(ex.best[i] || 0, 1)}"></span><span>${esc(QBY[x.id].title)}</span><span class="sp"></span><span class="n">${ex.best[i] || 0}/${PTS}</span></div>`).join('')}</section>
+    <div class="row"><button type="button" class="go" id="review">review with solutions →</button><button type="button" class="link" id="again">new mock quiz</button></div>
+  </main>`;
+  $('#back').onclick = renderHome;
+  $('#again').onclick = startExam;
+  $('#review').onclick = () => {
+    mode = 'apps'; list = ex.qs.map(x => ({ id: x.id, seed: x.seed }));
+    ex.qs.forEach((x, i) => { if (ex.code[i] != null) store.code[x.id] = ex.code[i]; });
+    save(); cur = 0; last = ex.last[0] || null; showSol = showHint = false; renderWork();
+  };
+}
+
+/* reference */
+const DOC = [
+  ['Typecasting', [['float(x)', 'Number or numeric string to float.'], ['int(x)', 'Number or numeric string to int. Drops the decimals.']]],
+  ['NumPy', [
+    ['np.eye(n)', 'Identity. np.eye(n, k=1) shifts the ones one diagonal up.'], ['np.zeros(shape)', 'np.zeros(5) or np.zeros((3, 4)).'],
+    ['np.ones_like(a)', 'Ones with the shape of a.'], ['np.diag(v)', 'Matrix with v on the diagonal, or the diagonal of a matrix.'],
+    ['np.append(a, values)', 'New array with values added at the end.'], ['np.vstack([a, b])', 'Arrays as rows of a 2d array.'],
+    ['np.sum(a, axis=None)', 'axis=0 sums each column, axis=1 sums each row.'], ['np.average(a, axis=None)', 'Mean, optionally along an axis.'],
+    ['np.argmin(a)', 'Index of the smallest entry.'], ['np.where(cond)', 'Indices where cond is True.'],
+    ['np.count_nonzero(a)', 'Number of nonzero or True entries.'], ['np.arange(start, stop, step)', 'Evenly spaced, stop excluded.'],
+    ['np.clip(a, lo, hi)', 'Limit entries to [lo, hi].'], ['np.linalg.eig(A)', '(eigenvalues, eigenvectors as columns).'],
+    ['np.linalg.lstsq(A, b)', 'Least squares. Solution is item 0.'], ['np.linalg.svd(A)', 'U, S, Vt with A = U diag(S) Vt.'],
+    ['np.linalg.matrix_power(A, k)', 'A times itself k times.'], ['np.linalg.norm(x)', 'Length of a vector.'],
+    ['np.linalg.solve(A, b)', 'Solves A x = b. Sometimes blocked.'], ['np.linalg.inv(A)', 'Inverse.']]],
+  ['Random', [['random.randint(a, b)', 'Integer in [a, b].'], ['random.random()', 'Float in [0, 1).'], ['random.sample(seq, k)', 'k distinct items.']]],
+  ['Files', [['np.loadtxt(fname)', 'Text file to array.'], ['pd.read_csv(fname)', 'CSV to DataFrame.']]],
+  ['Other', [['scipy.linalg.solve_triangular(A, b, lower=False)', 'Triangular solve. lower=True for lower.'], ['scipy.linalg.lu(A)', 'P, L, U with A = P L U.'], ['math.ceil(x)', 'Round up.']]]
+];
+let refTab = 'doc', refQ = '';
+function toggleDrawer() { const d = $('#drawer'); d.hidden = !d.hidden; if (!d.hidden) renderDrawer(); }
+function closeDrawer() { $('#drawer').hidden = true; }
+function renderDrawer() {
+  const lock = view === 'work' && isMock() && store.exam && !store.exam.done;
+  if (lock) refTab = 'doc';
+  $('#dh').innerHTML = `<button type="button" class="tabb ${refTab === 'doc' ? 'on' : ''}" data-t="doc">course doc</button>${lock ? '' : `<button type="button" class="tabb ${refTab === 'pat' ? 'on' : ''}" data-t="pat">patterns</button>`}<span class="sp"></span><button type="button" class="link" id="dClose">close</button>`;
+  document.querySelectorAll('.tabb').forEach(t => t.onclick = () => { refTab = t.dataset.t; renderDrawer(); });
+  $('#dClose').onclick = closeDrawer;
+  const data = refTab === 'doc' ? DOC : Object.keys(GROUPS).map(g => [GROUPS[g], DRILLS.filter(d => d.group === g).map(d => [d.title, d.idea])]);
+  const v = refQ.trim().toLowerCase();
+  const html = data.map(([h, fs]) => { const hits = fs.filter(f => !v || (f[0] + ' ' + f[1]).toLowerCase().includes(v)); return hits.length ? `<h5>${esc(h)}</h5>${hits.map(f => `<div class="fn"><code>${esc(f[0])}</code><p>${esc(f[1])}</p></div>`).join('')}` : ''; }).join('');
+  $('#db').innerHTML = `<input id="refQ" type="search" placeholder="search" value="${esc(refQ)}" aria-label="Search the reference">${html || '<p class="empty">No matches.</p>'}`;
+  const s = $('#refQ');
+  s.oninput = () => { refQ = s.value; const pos = s.selectionStart; renderDrawer(); const n = $('#refQ'); n.focus(); n.setSelectionRange(pos, pos); };
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+if (store.exam && store.exam.dur !== undefined) { delete store.exam.dur; delete store.exam.start; }
+startWorker();
+renderHome();
+})();
+</script>
