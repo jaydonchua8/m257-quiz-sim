@@ -58,6 +58,7 @@ code { font-family: var(--mono); font-size: 0.9em; }
 .d { width: 14px; height: 14px; border-radius: 50%; background: var(--faint); transition: transform 0.15s, background 0.2s; }
 .d:hover { transform: scale(1.35); }
 .d.part { background: var(--accent); opacity: 0.45; }
+.d.help { background: var(--bg); border: 2px solid var(--ok); }
 .d.full { background: var(--ok); }
 .d.cur { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--fg); }
 .d.pop { animation: pop 0.5s ease-out; }
@@ -117,6 +118,10 @@ pre.out.err { color: var(--bad); }
 .extra { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; font-size: 14px; }
 .extra pre { font-family: var(--mono); font-size: 13px; background: var(--code-bg); padding: 12px 14px; border-radius: 8px; overflow-x: auto; margin: 0; }
 .hint { color: var(--muted); }
+.aid { font-size: 13px; color: var(--accent); }
+.idea.helped { border-top-color: var(--accent); }
+.idea.helped .lbl { color: var(--accent); }
+.opt.gone { opacity: 0.15; pointer-events: none; }
 .empty { color: var(--muted); font-size: 14px; }
 
 /* recall game */
@@ -2129,10 +2134,16 @@ let view = 'home', mode = 'drills', cur = 0, list = [];
 let last = null, showSol = false, showHint = false, busy = false, justPassed = false;
 const isMock = () => mode === 'mock';
 const LABEL = q => q.kind === 'drill' ? GROUPS[q.group] : LABS[q.lab];
-const dotCls = (b, t) => !t ? '' : b >= PTS ? 'full' : 'part';
+const dotCls = (b, t, h) => !t ? '' : b >= PTS ? 'full' : h ? 'help' : 'part';
+const helped = id => !!(store.helped || {})[id];
+const itemCls = id => dotCls(best(id), tries(id), helped(id));
+const aided = x => (store.aid || {})[x.id] === x.seed;
+function markAid(x) { (store.aid = store.aid || {})[x.id] = x.seed; save(); }
 function nextUnsolved() {
-  const d = DRILLS.find(q => !done(q.id)); if (d) return ['drills', d.id];
-  const a = QUESTIONS.find(q => !done(q.id)); if (a) return ['apps', a.id];
+  for (const pass of [q => !done(q.id) && !helped(q.id), q => !done(q.id)]) {
+    const d = DRILLS.find(pass); if (d) return ['drills', d.id];
+    const a = QUESTIONS.find(pass); if (a) return ['apps', a.id];
+  }
   return null;
 }
 
@@ -2143,7 +2154,7 @@ function renderHome() {
   const nu = nextUnsolved();
   const ex = store.exam && !store.exam.done;
   const hist = (store.history || []).slice(-6);
-  const dots = (arr, m) => `<div class="dots">${arr.map(q => `<button type="button" class="d ${dotCls(best(q.id), tries(q.id))}" data-m="${m}" data-id="${q.id}" title="${esc(q.title)}" aria-label="${esc(q.title)}"></button>`).join('')}</div>`;
+  const dots = (arr, m) => `<div class="dots">${arr.map(q => `<button type="button" class="d ${itemCls(q.id)}" data-m="${m}" data-id="${q.id}" title="${esc(q.title)}" aria-label="${esc(q.title)}"></button>`).join('')}</div>`;
   $('#app').innerHTML = `<main class="page">
     <div class="top"><span>wed 10/28 · 6:15 pm · chem annex</span><span class="sp"></span>${rtHTML()}<button type="button" class="link" id="refBtn">reference</button></div>
     <section class="hero">
@@ -2209,11 +2220,14 @@ const loadCode = i => { const q = QBY[list[i].id]; const c = isMock() ? store.ex
 function storeCode(v) { if (isMock()) { if (!store.exam.done) store.exam.code[cur] = v; } else store.code[list[cur].id] = v; clearTimeout(storeCode.t); storeCode.t = setTimeout(save, 400); }
 const bestAt = i => isMock() ? (store.exam.best[i] || 0) : best(list[i].id);
 const triesAt = i => isMock() ? (store.exam.tries[i] || 0) : tries(list[i].id);
+const navCls = i => isMock() ? dotCls(bestAt(i), triesAt(i)) : itemCls(list[i].id);
 
 function renderWork() {
   view = 'work';
   const x = list[cur], q = QBY[x.id], p = paramsFor(q, x.seed), learn = !isMock();
   const passed = learn && last && last.score >= PTS;
+  const hintText = q.hint || q.idea;
+  const usedAid = learn && aided(x);
   const vars = rows => rows.map(r => `<span class="v" title="${esc(r[2])}"><code>${esc(r[0])}</code><span>${esc(r[1])}</span></span>`).join('');
   $('#app').innerHTML = `<main class="page work">
     <div class="bar">
@@ -2223,7 +2237,7 @@ function renderWork() {
       ${rtHTML()}
       <button type="button" class="link" id="refBtn">reference</button>
     </div>
-    <div class="dots navdots" aria-label="Items">${list.map((it, i) => `<button type="button" class="d ${dotCls(bestAt(i), triesAt(i))} ${i === cur ? 'cur' : ''} ${i === cur && justPassed ? 'pop' : ''}" data-i="${i}" title="${esc(QBY[it.id].title)}" aria-label="${esc(QBY[it.id].title)}"></button>`).join('')}</div>
+    <div class="dots navdots" aria-label="Items">${list.map((it, i) => `<button type="button" class="d ${navCls(i)} ${i === cur ? 'cur' : ''} ${i === cur && justPassed ? 'pop' : ''}" data-i="${i}" title="${esc(QBY[it.id].title)}" aria-label="${esc(QBY[it.id].title)}"></button>`).join('')}</div>
     <section class="q">
       <div class="eyebrow">${isMock() ? `problem ${cur + 1} of ${list.length}` : esc(LABEL(q).toLowerCase())}${q.kind === 'app' && learn ? ` · uses ${q.uses.map(u => `<button type="button" class="link" data-drill="${u}" style="font-size:13px;text-decoration:underline;text-underline-offset:3px">${esc(QBY[u].title.toLowerCase())}</button>`).join(', ')}` : ''}</div>
       <h1>${esc(q.title)}</h1>
@@ -2236,13 +2250,14 @@ function renderWork() {
     <div class="ed"><div id="editor" class="${q.kind === 'drill' ? 'short' : ''}"></div></div>
     <div class="row">
       <button type="button" class="run" id="run">run <small>⌘↵</small></button>
-      ${learn && q.hint ? `<button type="button" class="link" id="hintBtn">hint</button>` : ''}
+      ${learn && hintText ? `<button type="button" class="link" id="hintBtn" title="Using a hint means this dot will not count">hint</button>` : ''}
       ${learn ? `<button type="button" class="link" id="solBtn" ${triesAt(cur) ? '' : 'disabled title="Run once first"'}>solution</button><button type="button" class="link" id="varBtn">new numbers</button>` : ''}
       <button type="button" class="link" id="resetBtn">reset</button>
+      ${usedAid && !passed ? `<span class="aid">help used · this run won't fill the dot</span>` : ''}
     </div>
     <section class="res" id="res">${resultHTML(last)}</section>
-    ${passed ? `<section class="idea"><div><div class="lbl">${q.kind === 'drill' ? 'remember' : 'solved'}</div><p>${esc(q.kind === 'drill' ? q.idea : 'Run new numbers once more to be sure, or keep going.')}</p></div><button type="button" class="next" id="nextHot">${cur < list.length - 1 ? 'next' : 'home'} →<small>↵</small></button></section>` : ''}
-    ${showHint && learn ? `<section class="extra"><div class="hint">${esc(q.hint)}</div></section>` : ''}
+    ${passed ? `<section class="idea ${last.assisted ? 'helped' : ''}"><div><div class="lbl">${last.assisted ? 'solved with help · dot not counted' : q.kind === 'drill' ? 'remember' : 'solved'}</div><p>${esc(last.assisted ? 'You can move on. To fill the dot, come back, press new numbers and solve it without the hint or solution.' : q.kind === 'drill' ? q.idea : 'Run new numbers once more to be sure, or keep going.')}</p></div><button type="button" class="next" id="nextHot">${cur < list.length - 1 ? 'next' : 'home'} →<small>↵</small></button></section>` : ''}
+    ${showHint && learn ? `<section class="extra"><div class="hint">${esc(hintText)}</div></section>` : ''}
     ${showSol && learn ? `<section class="extra"><pre>${esc(q.solution(p))}</pre><div><button type="button" class="link" id="useSol">use this</button></div></section>` : ''}
   </main>`;
   mountEditor($('#editor'), loadCode(cur), storeCode);
@@ -2254,8 +2269,8 @@ function renderWork() {
   document.querySelectorAll('.navdots .d').forEach(b => b.onclick = () => go(Number(b.dataset.i)));
   document.querySelectorAll('[data-drill]').forEach(b => b.onclick = () => openList('drills', b.dataset.drill));
   if ($('#finish')) $('#finish').onclick = finishConfirm;
-  if ($('#hintBtn')) $('#hintBtn').onclick = () => { showHint = !showHint; renderKeep(); };
-  if ($('#solBtn')) $('#solBtn').onclick = () => { showSol = !showSol; renderKeep(); };
+  if ($('#hintBtn')) $('#hintBtn').onclick = () => { showHint = !showHint; if (showHint) markAid(x); renderKeep(); };
+  if ($('#solBtn')) $('#solBtn').onclick = () => { showSol = !showSol; if (showSol) markAid(x); renderKeep(); };
   if ($('#varBtn')) $('#varBtn').onclick = () => { x.seed = store.seeds[x.id] = newSeed(); save(); last = null; showSol = justPassed = false; renderKeep(); };
   if ($('#useSol')) $('#useSol').onclick = () => { const v = q.solution(p); setCode(v); storeCode(v); };
   if ($('#nextHot')) { $('#nextHot').onclick = () => cur < list.length - 1 ? go(cur + 1) : renderHome(); $('#nextHot').focus({ preventScroll: true }); }
@@ -2296,21 +2311,31 @@ async function grade() {
   const res = await runPython(q, x.seed, code);
   busy = false;
   const wasDone = bestAt(i) >= PTS;
+  const assisted = !isMock() && aided(x);
+  res.assisted = assisted;
   if (isMock()) {
     store.exam.tries[i] = (store.exam.tries[i] || 0) + 1;
     store.exam.best[i] = Math.max(store.exam.best[i] || 0, res.score || 0);
     store.exam.last[i] = res;
   } else {
     store.tries[q.id] = tries(q.id) + 1;
-    store.best[q.id] = Math.max(best(q.id), res.score || 0);
-    store.streak = res.score >= PTS ? (store.streak || 0) + 1 : 0;
+    store.helped = store.helped || {};
+    if (assisted) {
+      store.best[q.id] = Math.max(best(q.id), Math.min(res.score || 0, PTS - 1));
+      if (res.score >= PTS) store.helped[q.id] = true;
+      else store.streak = 0;
+    } else {
+      store.best[q.id] = Math.max(best(q.id), res.score || 0);
+      if (res.score >= PTS) delete store.helped[q.id];
+      store.streak = res.score >= PTS ? (store.streak || 0) + 1 : 0;
+    }
   }
   save();
   if (view === 'work' && cur === i) {
     last = res;
-    justPassed = res.score >= PTS && !wasDone;
+    justPassed = res.score >= PTS && !wasDone && !assisted;
     renderKeep();
-    if (res.score >= PTS) { const r = $('#run').getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2); }
+    if (res.score >= PTS && !assisted) { const r = $('#run').getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2); }
     const t = $('.idea') || $('#res'); if (t) t.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   } else refreshRun();
 }
@@ -2366,7 +2391,7 @@ function startRecall() {
     while ((r -= w(pool[i])) > 0) i++;
     deck.push(pool.splice(i, 1)[0]);
   }
-  G = { deck: deck.map(c => ({ c, order: shuffle([0, 1, 2, 3]) })), i: 0, lives: LIVES, score: 0, combo: 0, picked: null, missed: [], hit: false };
+  G = { deck: deck.map(c => ({ c, order: shuffle([0, 1, 2, 3]) })), i: 0, lives: LIVES, score: 0, combo: 0, picked: null, missed: [], hit: false, elim: null, hints: 0 };
   view = 'game'; closeDrawer(); renderGame(); window.scrollTo({ top: 0 });
 }
 function renderGame() {
@@ -2375,6 +2400,7 @@ function renderGame() {
   const optHTML = it.order.map((k, n) => {
     let cls = '';
     if (ans !== null) cls = k === 0 ? 'right' : k === ans ? 'wrong' : 'dim';
+    else if (G.elim && G.elim.includes(k)) cls = 'gone';
     return `<button type="button" class="opt ${cls}" data-k="${k}" ${ans !== null ? 'disabled' : ''}><span class="key">${n + 1}</span><span class="txt ${c.plain ? '' : 'code'}">${esc(c.o[k])}</span></button>`;
   }).join('');
   $('#app').innerHTML = `<main class="page work">
@@ -2387,22 +2413,35 @@ function renderGame() {
     </div>
     <div class="prog"><i style="width:${100 * G.i / G.deck.length}%"></i></div>
     <section class="card-q">
-      <div class="eyebrow">${esc(RECALL_SECTIONS[c.s].toLowerCase())} · ${G.i + 1} of ${G.deck.length}</div>
+      <div class="eyebrow">${esc(RECALL_SECTIONS[c.s].toLowerCase())} · ${G.i + 1} of ${G.deck.length}${G.elim ? ' · <span class="aid">hint used · half points, not counted toward learned</span>' : ''}</div>
       <h2>${fmtq(c.q)}</h2>
     </section>
     <div class="opts">${optHTML}</div>
+    ${ans === null && !G.elim ? `<div class="row"><button type="button" class="link" id="gHint">hint <small style="font-family:var(--mono)">h</small> · removes 2 wrong answers, card won't count</button></div>` : ''}
     ${ans !== null ? `<section class="why ${ans === 0 ? 'good' : ''}"><p>${fmtq(c.why)}</p><button type="button" class="next" id="gNext">${G.lives <= 0 || G.i === G.deck.length - 1 ? 'results' : 'next'} →<small>↵</small></button></section>` : ''}
   </main>`;
   G.bump = false; G.hit = false;
   $('#back').onclick = endRecall;
+  if ($('#gHint')) $('#gHint').onclick = useHint;
   document.querySelectorAll('.opt').forEach(b => b.onclick = () => pick(Number(b.dataset.k), b));
   if ($('#gNext')) { $('#gNext').onclick = gNext; $('#gNext').focus({ preventScroll: true }); }
+}
+function useHint() {
+  if (!G || G.picked !== null || G.elim) return;
+  G.elim = shuffle([1, 2, 3]).slice(0, 2); G.hints++;
+  renderGame();
 }
 function pick(k, btn) {
   if (!G || G.picked !== null) return;
   const c = G.deck[G.i].c, rec = Object.assign({ right: 0, wrong: 0, streak: 0 }, rCard(c.id));
   G.picked = k;
-  if (k === 0) {
+  if (k === 0 && G.elim) {
+    const gain = 50; G.score += gain;
+    const r = btn.getBoundingClientRect();
+    const f = document.createElement('div'); f.className = 'float'; f.textContent = '+' + gain;
+    f.style.left = (r.left + r.width - 70) + 'px'; f.style.top = (r.top - 4) + 'px';
+    document.body.appendChild(f); setTimeout(() => f.remove(), 900);
+  } else if (k === 0) {
     G.combo++;
     const gain = 100 * (1 + Math.floor((G.combo - 1) / 3));
     G.score += gain; rec.right++; rec.streak++;
@@ -2424,7 +2463,7 @@ function gNext() {
   if (!G) return;
   clearTimeout(G.t);
   if (G.lives <= 0 || G.i >= G.deck.length - 1) return endRecall();
-  G.i++; G.picked = null; renderGame();
+  G.i++; G.picked = null; G.elim = null; renderGame();
 }
 function endRecall() {
   if (!G) return renderHome();
@@ -2436,7 +2475,7 @@ function endRecall() {
   const perfect = g.missed.length === 0 && done === g.deck.length;
   $('#app').innerHTML = `<main class="page">
     <div class="top"><button type="button" class="link" id="back">← home</button></div>
-    <section class="hero"><h1>${g.score}<span>.</span></h1><p>${newBest ? 'New best. ' : rs.best ? 'Best ' + rs.best + '. ' : ''}${perfect ? 'Flawless round.' : g.lives <= 0 ? 'Out of lives after ' + done + ' cards.' : done + ' cards played.'} ${rLearned()}/${RECALL.length} learned (right twice in a row).</p></section>
+    <section class="hero"><h1>${g.score}<span>.</span></h1><p>${newBest ? 'New best. ' : rs.best ? 'Best ' + rs.best + '. ' : ''}${perfect && !g.hints ? 'Flawless round.' : perfect ? 'No misses, ' + g.hints + ' hint' + (g.hints > 1 ? 's' : '') + '.' : g.lives <= 0 ? 'Out of lives after ' + done + ' cards.' : done + ' cards played.'} ${rLearned()}/${RECALL.length} learned (right twice in a row).</p></section>
     <div><button type="button" class="go" id="again">Play again →</button></div>
     ${g.missed.length ? `<section class="track"><div class="track-h"><span style="font-size:20px;font-weight:600">Missed</span><span class="n">${g.missed.length}</span></div><div class="missed">${g.missed.map(c => `<div><span class="q">${fmtq(c.q)}</span>${c.plain ? `<span>${esc(c.o[0])}</span>` : `<code>${esc(c.o[0])}</code>`}</div>`).join('')}</div></section>` : ''}
     <section class="tracks">${Object.keys(RECALL_SECTIONS).map(s => { const cs = RECALL.filter(c => c.s === s); return `<div class="sec"><span>${esc(RECALL_SECTIONS[s])}</span><span class="n" style="font-family:var(--mono);font-size:13px;color:var(--muted)">${cs.filter(c => rIsLearned(c.id)).length}/${cs.length}</span><div class="dots">${cs.map(c => `<span class="d ${rCls(c.id)}"></span>`).join('')}</div></div>`; }).join('')}</section>
@@ -2447,7 +2486,8 @@ function endRecall() {
 }
 document.addEventListener('keydown', e => {
   if (view !== 'game' || !G || e.metaKey || e.ctrlKey || e.altKey) return;
-  if (G.picked === null && /^[1-4]$/.test(e.key)) {
+  if (G.picked === null && (e.key === 'h' || e.key === 'H')) { e.preventDefault(); useHint(); }
+  else if (G.picked === null && /^[1-4]$/.test(e.key)) {
     const b = document.querySelectorAll('.opt')[Number(e.key) - 1];
     if (b) { e.preventDefault(); pick(Number(b.dataset.k), b); }
   } else if (G.picked !== null && (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight')) {
