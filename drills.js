@@ -634,9 +634,30 @@ components = ...
 rank = ...
 `,
   setup: py`def nullspace(M, tol=1e-10):
-    u, s, vh = np.linalg.svd(M)
-    r = int((s > tol).sum())
-    return vh[r:].T.copy()
+    A = np.array(M, dtype=float)
+    m, n = A.shape
+    piv = []
+    r = 0
+    for c in range(n):
+        if r >= m:
+            break
+        p = r + int(np.argmax(np.abs(A[r:, c])))
+        if abs(A[p, c]) < tol:
+            continue
+        A[[r, p]] = A[[p, r]]
+        A[r] = A[r] / A[r, c]
+        for i in range(m):
+            if i != r:
+                A[i] = A[i] - A[i, c] * A[r]
+        piv.append(c)
+        r += 1
+    free = [c for c in range(n) if c not in piv]
+    N = np.zeros((n, len(free)))
+    for k, f in enumerate(free):
+        N[f, k] = 1
+        for i, pc in enumerate(piv):
+            N[pc, k] = -A[i, f]
+    return np.round(N, 12) + 0.0
 n = int(np.random.randint(8, 14))
 k = int(np.random.randint(2, 5))
 lab = np.arange(n) % k
@@ -783,5 +804,22 @@ const USES = {
   'l5-separation': ['d-atmost', 'd-all'],
   'l6-denoise': ['d-orth', 'd-mask'],
   'l6-compress': ['d-2d', 'd-index'],
-  'l6-basis': ['d-gen', 'd-orth']
+  'l6-basis': ['d-gen', 'd-orth'],
+  'l1-subset': ['d-tuple', 'd-slice'],
+  'l1-arrays': ['d-slice'],
+  'l2-shares': ['d-build', 'd-matmul'],
+  'l2-sound': ['d-matmul'],
+  'l2-colors': ['d-stack'],
+  'l3-shear': ['d-build', 'd-compose'],
+  'l3-undo': ['d-inv'],
+  'l3-bright': ['d-axis'],
+  'l3-shift': ['d-band', 'd-index'],
+  'l4-slinky': ['d-index', 'd-band'],
+  'l4-lumany': ['d-lu'],
+  'l4-plate': ['d-index', 'd-inv'],
+  'l5-incidence': ['d-null'],
+  'l5-groups': ['d-null', 'd-axis'],
+  'l6-dct': ['d-orth', 'd-mask'],
+  'l6-audio': ['d-orth', 'd-index'],
+  'l6-haar': ['d-gen', 'd-mask']
 };

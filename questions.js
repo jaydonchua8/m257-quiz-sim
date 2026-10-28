@@ -91,6 +91,89 @@ G.expect_fn('running_max', cases, ref, 10)
 `
 },
 
+{
+  id: 'l1-subset', lab: 1, title: 'Sum and subset of a list',
+  params: r => ({}),
+  prompt: p => `
+<p>Given a list of integers <code>A</code> and an integer <code>n</code>, the function <code>A_subset(A, n)</code> returns a tuple <code>(sum, Asub)</code> where</p>
+<ul>
+<li><code>sum</code> is an integer with the sum of all the entries of the list</li>
+<li><code>Asub</code> is a list with the first <code>n</code> entries of <code>A</code></li>
+</ul>
+<pre>A = [54, 83, 77, 34, 8, 47, 57, 23, 49, 99]
+print(A_subset(A, 4))
+# (531, [54, 83, 77, 34])</pre>
+<p>We test your function on other lists, so do not hard-code your results.</p>`,
+  given: [['A', 'list', 'example list (for debugging)'], ['n', 'int', 'example n']],
+  defines: [['A_subset', 'function', 'returns (sum, Asub)']],
+  starter: py`def A_subset(A, n):
+    # write some code here
+    pass
+`,
+  setup: py`A = [54, 83, 77, 34, 8, 47, 57, 23, 49, 99]
+n = 4
+`,
+  check: py`def ref(A, n):
+    return (sum(A), A[:n])
+cases = [(S['A'], S['n']), ([5], 1), ([1, 2, 3], 3), ([-4, 7, 0, 2], 2)]
+for k, m in [(9, 5), (12, 1), (20, 11)]:
+    cases.append(([int(x) for x in np.random.randint(-60, 100, size=k)], int(m)))
+G.expect_fn('A_subset', cases, ref, 10)
+`,
+  hint: 'A comma builds a tuple: return total, A[:n]. Add the entries with a for loop (or sum(A)).',
+  solution: p => py`def A_subset(A, n):
+    total = 0
+    for a in A:
+        total += a
+    Asub = A[:n]
+    return total, Asub
+`
+},
+{
+  id: 'l1-arrays', lab: 1, title: 'Slices, linspace and arange',
+  params: r => ({ rate: r.pick([8000, 11025, 22050]), dur: r.pick([0.2, 0.25, 0.3]), M: r.pick([10, 16, 20, 30]) }),
+  prompt: p => `
+<p><code>int_array</code> is a 1d numpy array of integers. Define:</p>
+<ul>
+<li><code>middle</code>: every entry except the first and the last</li>
+<li><code>odds</code>: the entries at odd indices (1, 3, 5, ...)</li>
+<li><code>backwards</code>: <code>int_array</code> in reverse order</li>
+<li><code>t</code>: ${p.dur * p.rate | 0} evenly spaced times from 0 to ${p.dur}, both ends included. (That is <code>int(${p.rate} * ${p.dur})</code> samples.)</li>
+<li><code>evens</code>: the even integers 0, 2, 4, ..., ${p.M} (include ${p.M})</li>
+</ul>`,
+  given: [['int_array', '1d numpy array', 'array of integers']],
+  defines: [['middle', '1d numpy array', 'all but first and last'], ['odds', '1d numpy array', 'odd-index entries'], ['backwards', '1d numpy array', 'reversed'], ['t', '1d numpy array', 'sample times'], ['evens', '1d numpy array', 'even integers up to M']],
+  starter: py`import numpy as np
+
+middle = ...
+odds = ...
+backwards = ...
+t = ...
+evens = ...
+`,
+  setup: py`rate = PARAMS['rate']
+dur = PARAMS['dur']
+M = PARAMS['M']
+int_array = np.random.randint(0, 10, size=int(np.random.randint(7, 12)))
+`,
+  check: py`a = S['int_array']
+G.expect('middle', a[1:-1], 2)
+G.expect('odds', a[1::2], 2)
+G.expect('backwards', a[::-1], 2)
+G.expect('t', np.linspace(0, S['dur'], int(S['rate'] * S['dur'])), 2)
+G.expect('evens', np.arange(0, S['M'] + 1, 2), 2)
+`,
+  hint: 'a[1:-1] drops both ends, a[1::2] starts at 1 with step 2. np.linspace(start, stop, count) includes stop. np.arange(start, stop, step) excludes stop, so go one past it.',
+  solution: p => py`import numpy as np
+
+middle = int_array[1:-1]
+odds = int_array[1::2]
+backwards = int_array[::-1]
+t = np.linspace(0, ${p.dur}, int(${p.rate} * ${p.dur}))
+evens = np.arange(0, ${p.M} + 1, 2)
+`
+},
+
 /* ---------------- LAB 2 ---------------- */
 {
   id: 'l2-missing', lab: 2, title: 'Find the missing vector',
@@ -206,6 +289,144 @@ def angle_deg(x, y):
     c = np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
     c = np.clip(c, -1, 1)
     return float(np.degrees(np.arccos(c)))
+`
+},
+
+{
+  id: 'l2-shares', lab: 2, title: 'Pick shares to hit a target',
+  params: r => ({ start: r.pick([500, 1000, 2000]), mult: r.pick([1.5, 2, 3]), q: r.pick([62, 125, 189]) }),
+  prompt: p => `
+<p><code>p1</code> and <code>p2</code> are 1d arrays with the daily stock prices of two companies over <code>T</code> trading days.</p>
+<p>You buy <code>X1</code> shares of company 1 and <code>X2</code> shares of company 2 on day 0, so that</p>
+<pre>X1*p1[0]  + X2*p2[0]  = ${p.start}
+X1*p1[-1] + X2*p2[-1] = ${p.start * p.mult}</pre>
+<p>Define:</p>
+<ul>
+<li><code>X1</code>, <code>X2</code>: the numbers of shares (floats) solving the two equations</li>
+<li><code>value</code>: 1d array with the value of this portfolio on every day</li>
+<li><code>invt_q</code>: the value of the portfolio on day <code>t = ${p.q}</code></li>
+</ul>`,
+  given: [['p1', '1d numpy array', 'prices of company 1'], ['p2', '1d numpy array', 'prices of company 2']],
+  defines: [['X1', 'float', 'shares of company 1'], ['X2', 'float', 'shares of company 2'], ['value', '1d numpy array', 'value on each day'], ['invt_q', 'float', 'value on day q']],
+  starter: py`import numpy as np
+
+X1 = ...
+X2 = ...
+value = ...
+invt_q = ...
+`,
+  setup: py`start = PARAMS['start']
+mult = PARAMS['mult']
+q = PARAMS['q']
+T = 252
+p1 = np.round(np.abs(np.cumsum(np.random.randn(T)) + 40), 2)
+p2 = np.round(np.abs(np.cumsum(np.random.randn(T) * 1.5) + 160), 2)
+while abs(p1[0] * p2[-1] - p2[0] * p1[-1]) < 50:
+    p1 = np.round(np.abs(np.cumsum(np.random.randn(T)) + 40), 2)
+del T
+`,
+  check: py`A = np.array([[S['p1'][0], S['p2'][0]], [S['p1'][-1], S['p2'][-1]]])
+X = ORIG['solve'](A, np.array([S['start'], S['start'] * S['mult']], dtype=float))
+v = X[0] * S['p1'] + X[1] * S['p2']
+G.expect('X1', X[0], 2)
+G.expect('X2', X[1], 2)
+G.expect('value', v, 3)
+G.expect('invt_q', v[S['q']], 3)
+`,
+  hint: 'Put the two equations in matrix form: [[p1[0], p2[0]], [p1[-1], p2[-1]]] @ [X1, X2] = [start, end]. Solve with np.linalg.solve, then value = X1*p1 + X2*p2.',
+  solution: p => py`import numpy as np
+
+A = np.array([[p1[0], p2[0]],
+              [p1[-1], p2[-1]]])
+b = np.array([${p.start}, ${p.start * p.mult}])
+X = np.linalg.solve(A, b)
+X1 = X[0]
+X2 = X[1]
+value = X1 * p1 + X2 * p2
+invt_q = value[${p.q}]
+`
+},
+{
+  id: 'l2-sound', lab: 2, title: 'Make a tone, remove a noise',
+  params: r => ({ rate: r.pick([4000, 8000]), dur: r.pick([0.25, 0.5]), w: r.pick([220, 440, 880]), c: r.pick([0.3, 0.5, 0.75, 1.5]) }),
+  prompt: p => `
+<p>Sounds are 1d arrays sampled at <code>rate = ${p.rate}</code> samples per second.</p>
+<ol>
+<li><code>nsamples</code>: the number of samples in ${p.dur} seconds, as an <code>int</code></li>
+<li><code>t</code>: <code>nsamples</code> evenly spaced times from 0 to ${p.dur} (both included)</li>
+<li><code>tone</code>: the pure tone <code>sin(${p.w} · 2π · t)</code></li>
+<li>A recording <code>mix</code> was made as <code>mix = voice + ${p.c}*noise</code>. You are given <code>mix</code> and <code>noise</code>. Recover <code>voice</code>.</li>
+</ol>`,
+  given: [['mix', '1d numpy array', 'voice plus scaled noise'], ['noise', '1d numpy array', 'the noise track']],
+  defines: [['nsamples', 'int', 'number of samples'], ['t', '1d numpy array', 'sample times'], ['tone', '1d numpy array', 'pure tone'], ['voice', '1d numpy array', 'recovered voice']],
+  starter: py`import numpy as np
+
+nsamples = ...
+t = ...
+tone = ...
+voice = ...
+`,
+  setup: py`rate = PARAMS['rate']
+dur = PARAMS['dur']
+w = PARAMS['w']
+c = PARAMS['c']
+L = 1500
+noise = np.random.randn(L) * 0.4
+mix = np.sin(np.linspace(0, 40, L)) * np.linspace(1, 0.2, L) + c * noise
+del L
+`,
+  check: py`ns = int(S['rate'] * S['dur'])
+tt = np.linspace(0, S['dur'], ns)
+G.expect('nsamples', ns, 2)
+G.expect('t', tt, 2)
+G.expect('tone', np.sin(S['w'] * 2 * np.pi * tt), 3)
+G.expect('voice', S['mix'] - S['c'] * S['noise'], 3)
+`,
+  hint: 'nsamples = int(rate * duration). np.linspace(0, duration, nsamples). np.sin and np.pi work on whole arrays. Move the noise term to the other side.',
+  solution: p => py`import numpy as np
+
+nsamples = int(${p.rate} * ${p.dur})
+t = np.linspace(0, ${p.dur}, nsamples)
+tone = np.sin(${p.w} * 2 * np.pi * t)
+voice = mix - ${p.c} * noise
+`
+},
+{
+  id: 'l2-colors', lab: 2, title: 'Grid of color combinations',
+  params: r => ({}),
+  prompt: p => `
+<p>A color is a length-3 array <code>[red, green, blue]</code> with entries between 0 and 1.</p>
+<p>Write <code>make_color_plot(u, v)</code>. For every <code>x</code> in <code>np.arange(0, 1.1, 0.1)</code> (outer loop) and every <code>y</code> in <code>np.arange(0, 1.1, 0.1)</code> (inner loop), compute the color <code>x*u + y*v</code>, clipped so every entry lies between 0 and 1.</p>
+<p>Return all colors as a 2d numpy array with one color per row, in loop order (shape <code>(121, 3)</code>).</p>`,
+  given: [['u', '1d numpy array', 'example color'], ['v', '1d numpy array', 'example color']],
+  defines: [['make_color_plot', 'function', 'returns a (121, 3) array']],
+  starter: py`import numpy as np
+
+def make_color_plot(u, v):
+    pass
+`,
+  setup: py`u = np.array([0.8, 0.1, 0.3])
+v = np.array([0.2, 0.7, 0.9])
+`,
+  check: py`def ref(u, v):
+    out = []
+    for x in np.arange(0, 1.1, 0.1):
+        for y in np.arange(0, 1.1, 0.1):
+            out.append(np.clip(x * u + y * v, 0, 1))
+    return np.array(out)
+cases = [(S['u'], S['v'])] + [(np.random.rand(3), np.random.rand(3)) for _ in range(4)]
+G.expect_fn('make_color_plot', cases, ref, 10)
+`,
+  hint: 'Two nested for loops, append each color to a Python list, then np.array(list) at the end. np.clip(c, 0, 1) caps values.',
+  solution: p => py`import numpy as np
+
+def make_color_plot(u, v):
+    colors = []
+    for x in np.arange(0, 1.1, 0.1):
+        for y in np.arange(0, 1.1, 0.1):
+            c = x * u + y * v
+            colors.append(np.clip(c, 0, 1))
+    return np.array(colors)
 `
 },
 
@@ -339,6 +560,187 @@ c = np.array([[${p.cx}],
               [${p.cy}]])
 
 rotated = R @ (image - c) + c
+`
+},
+
+{
+  id: 'l3-shear', lab: 3, title: 'Shear, then rotate',
+  params: r => ({ s: r.pick([0.4, 0.6, 0.8, -0.5, 1.2]), ax: r.pick(['x', 'y']), th: r.pick([30, 45, 60, 90, 135]) }),
+  prompt: p => `
+<p>You are given <code>image</code>, a <code>2 × N</code> matrix of points (one point per column).</p>
+<p><b>Shear operator</b>:</p>
+<pre>${p.ax === 'x' ? `x' = x + ${p.s} y
+y' = y` : `x' = x
+y' = y + ${p.s} x`}</pre>
+<p><b>Rotation operator</b>: rotate ${p.th} degrees counterclockwise about the origin:</p>
+<pre>x' = x cos θ − y sin θ
+y' = x sin θ + y cos θ</pre>
+<p>Define <code>sheared</code>, <code>rotated</code>, and <code>sheared_and_rotated</code> (shear first, then rotate).</p>`,
+  given: [['image', 'numpy array', '2 × N points'], ['display_image', 'function', 'helper to plot an image (does nothing here)']],
+  defines: [['sheared', 'numpy array', 'sheared image'], ['rotated', 'numpy array', 'rotated image'], ['sheared_and_rotated', 'numpy array', 'sheared, then rotated']],
+  starter: py`import numpy as np
+
+sheared = ...
+rotated = ...
+sheared_and_rotated = ...
+`,
+  setup: py`s = PARAMS['s']
+ax = PARAMS['ax']
+th = PARAMS['th']
+def display_image(img):
+    pass
+N = int(np.random.randint(20, 40))
+image = np.vstack([np.random.randn(N) * 2, np.random.randn(N) * 3])
+del N
+`,
+  check: py`Sh = np.array([[1.0, S['s']], [0.0, 1.0]]) if S['ax'] == 'x' else np.array([[1.0, 0.0], [S['s'], 1.0]])
+t = np.radians(S['th'])
+R = np.array([[np.cos(t), -np.sin(t)], [np.sin(t), np.cos(t)]])
+img = S['image']
+G.expect('sheared', Sh @ img, 3)
+G.expect('rotated', R @ img, 3)
+G.expect('sheared_and_rotated', R @ Sh @ img, 4)
+`,
+  hint: 'Read each matrix row off the equations: the row for x\' holds the coefficients of x and y. Shear first, then rotate is R @ Sh @ image (rightmost acts first).',
+  solution: p => py`import numpy as np
+
+Sh = np.array([${p.ax === 'x' ? `[1, ${p.s}],
+               [0, 1]` : `[1, 0],
+               [${p.s}, 1]`}])
+theta = ${p.th} * np.pi / 180
+R = np.array([[np.cos(theta), -np.sin(theta)],
+              [np.sin(theta),  np.cos(theta)]])
+
+sheared = Sh @ image
+rotated = R @ image
+sheared_and_rotated = R @ Sh @ image
+`
+},
+{
+  id: 'l3-undo', lab: 3, title: 'Undo a distortion',
+  params: r => ({}),
+  prompt: p => `
+<p>Someone multiplied the points of a logo by a 2 × 2 matrix <code>A</code>, giving the distorted image <code>image = A @ original</code> (a <code>2 × N</code> array).</p>
+<ol>
+<li><code>corrected</code>: the original image</li>
+<li><code>mirrored</code>: the original image reflected across the x-axis (<code>x' = x</code>, <code>y' = −y</code>)</li>
+</ol>`,
+  given: [['image', 'numpy array', 'distorted image, 2 × N'], ['A', '2d numpy array', 'the distorting matrix']],
+  defines: [['corrected', 'numpy array', 'original image'], ['mirrored', 'numpy array', 'original reflected across the x-axis']],
+  starter: py`import numpy as np
+
+corrected = ...
+mirrored = ...
+`,
+  setup: py`A = np.random.randint(-3, 4, size=(2, 2)).astype(float)
+while abs(np.linalg.det(A)) < 1:
+    A = np.random.randint(-3, 4, size=(2, 2)).astype(float)
+N = int(np.random.randint(20, 40))
+image = A @ np.vstack([np.random.randn(N), np.random.randn(N) * 2])
+del N
+`,
+  check: py`orig = ORIG['inv'](S['A']) @ S['image']
+G.expect('corrected', orig, 6)
+G.expect('mirrored', np.array([[1.0, 0.0], [0.0, -1.0]]) @ orig, 4)
+`,
+  hint: 'image = A @ original, so original = inv(A) @ image. Reflection across the x-axis is [[1, 0], [0, -1]].',
+  solution: p => py`import numpy as np
+
+corrected = np.linalg.inv(A) @ image
+F = np.array([[1, 0],
+              [0, -1]])
+mirrored = F @ corrected
+`
+},
+{
+  id: 'l3-bright', lab: 3, title: 'Brightness and contrast',
+  params: r => ({ m: r.pick([0.4, 0.5, 0.6]), c: r.pick([0.5, 1.5, 2]) }),
+  prompt: p => `
+<p><code>img</code> is a 2d grayscale image with values between 0 and 1.</p>
+<ol>
+<li><code>centered</code>: shift <code>img</code> so its mean becomes ${p.m} (add the same number to every pixel)</li>
+<li><code>adjusted</code>: scale <code>img</code> by ${p.c} (contrast), then shift the result so its mean is ${p.m}</li>
+<li><code>clipped</code>: <code>adjusted</code> with every value clipped to lie between 0 and 1</li>
+</ol>`,
+  given: [['img', '2d numpy array', 'grayscale image']],
+  defines: [['centered', '2d numpy array', 'mean shifted'], ['adjusted', '2d numpy array', 'scaled, then mean shifted'], ['clipped', '2d numpy array', 'adjusted, clipped to [0, 1]']],
+  starter: py`import numpy as np
+
+centered = ...
+adjusted = ...
+clipped = ...
+`,
+  setup: py`m = PARAMS['m']
+c = PARAMS['c']
+img = np.clip(np.random.rand(12, 16) * 0.5 + 0.1 + np.linspace(0, 0.3, 16), 0, 1)
+`,
+  check: py`im = S['img']
+G.expect('centered', im + S['m'] - im.mean(), 3)
+a = S['c'] * im
+a = a + S['m'] - a.mean()
+G.expect('adjusted', a, 4)
+G.expect('clipped', np.clip(a, 0, 1), 3)
+`,
+  hint: 'img.mean() is the average of all pixels. Adding (target - mean) to every pixel moves the mean to the target. Scale first, then use the new mean.',
+  solution: p => py`import numpy as np
+
+centered = img + ${p.m} - img.mean()
+
+scaled = ${p.c} * img
+adjusted = scaled + ${p.m} - scaled.mean()
+
+clipped = np.clip(adjusted, 0, 1)
+`
+},
+{
+  id: 'l3-shift', lab: 3, title: 'Shift and smoothing matrices',
+  params: r => ({ n: r.pick([10, 12, 16]), k: r.pick([1, 2, 3]) }),
+  prompt: p => `
+<p><code>x</code> is a 1d signal of length ${p.n}.</p>
+<ol>
+<li><code>Sh</code>: the ${p.n} × ${p.n} matrix with <code>(Sh @ x)[i] = x[(i + ${p.k}) % ${p.n}]</code> (shift left by ${p.k}, wrapping around). <code>shifted = Sh @ x</code>.</li>
+<li><code>Sm</code>: the ${p.n} × ${p.n} smoothing matrix. Row <code>i</code> averages <code>x[i-1], x[i], x[i+1]</code> (1/3 each). The first row averages <code>x[0], x[1]</code> (1/2 each) and the last row averages <code>x[-2], x[-1]</code> (1/2 each).</li>
+<li><code>edges</code>: <code>(I − Sm) @ x</code>, where <code>I</code> is the identity.</li>
+</ol>`,
+  given: [['x', '1d numpy array', 'signal']],
+  defines: [['Sh', '2d numpy array', 'shift matrix'], ['shifted', '1d numpy array', 'Sh @ x'], ['Sm', '2d numpy array', 'smoothing matrix'], ['edges', '1d numpy array', '(I - Sm) @ x']],
+  starter: py`import numpy as np
+
+Sh = ...
+shifted = ...
+Sm = ...
+edges = ...
+`,
+  setup: py`n = PARAMS['n']
+k = PARAMS['k']
+x = np.sin(np.linspace(0, 2 * np.pi, n)) + (np.arange(n) > n // 2)
+`,
+  check: py`n = S['n']
+Sh = np.roll(np.eye(n), -S['k'], axis=0)
+Sm = np.zeros((n, n))
+Sm[0, :2] = 0.5
+Sm[-1, -2:] = 0.5
+for i in range(1, n - 1):
+    Sm[i, i-1:i+2] = 1 / 3
+G.expect('Sh', Sh, 3)
+G.expect('shifted', Sh @ S['x'], 2)
+G.expect('Sm', Sm, 3)
+G.expect('edges', (np.eye(n) - Sm) @ S['x'], 2)
+`,
+  hint: 'np.roll(np.eye(n), -k, axis=0) moves every row of the identity up by k, so row i picks x[i+k]. Build Sm with a loop over rows and slice assignment Sm[i, i-1:i+2] = 1/3.',
+  solution: p => py`import numpy as np
+
+n = len(x)
+Sh = np.roll(np.eye(n), -${p.k}, axis=0)
+shifted = Sh @ x
+
+Sm = np.zeros((n, n))
+Sm[0, 0:2] = 0.5
+Sm[n-1, n-2:n] = 0.5
+for i in range(1, n - 1):
+    Sm[i, i-1:i+2] = 1 / 3
+
+edges = (np.eye(n) - Sm) @ x
 `
 },
 
@@ -562,6 +964,223 @@ x = np.linalg.inv(A) @ rhs
 `
 },
 
+{
+  id: 'l4-slinky', lab: 4, title: 'Hanging slinky',
+  params: r => ({}),
+  prompt: p => `
+<p>A slinky hangs from the ceiling. It is modeled by <code>N</code> masses and <code>N</code> springs: spring 0 joins the ceiling to mass 0, and spring <code>i</code> (for <code>i ≥ 1</code>) joins mass <code>i-1</code> to mass <code>i</code>. The last mass hangs free.</p>
+<ol>
+<li>Write <code>get_stiffness(k_array)</code> that returns the <code>N × N</code> stiffness matrix for spring stiffnesses <code>k_array</code> (length <code>N</code>):
+<pre>K[0, 0] += k_array[0]
+for i ≥ 1:  K[i-1:i+1, i-1:i+1] += k_array[i] * [[1, -1], [-1, 1]]</pre></li>
+<li><code>u</code>: displacements solving <code>K u = f</code>, where <code>K = get_stiffness(k * np.ones(N))</code> and every mass feels the force <code>f = m * g</code></li>
+<li><code>def_coord</code>: the deformed coordinates, length <code>N + 1</code>. The rest coordinates are <code>coord[i] = l * i</code> for <code>i = 0, ..., N</code>; point 0 (the ceiling) does not move, so add <code>[0, u[0], ..., u[N-1]]</code>.</li>
+<li><code>tip</code>: the displacement of the free end</li>
+</ol>`,
+  given: [['N', 'int', 'number of masses and springs'], ['k', 'float', 'stiffness of each spring'], ['m', 'float', 'each mass'], ['g', 'float', 'gravity'], ['l', 'float', 'rest length of each spring']],
+  defines: [['get_stiffness', 'function', 'N × N stiffness matrix'], ['u', '1d numpy array', 'displacements'], ['def_coord', '1d numpy array', 'deformed coordinates, length N + 1'], ['tip', 'float', 'displacement of the free end']],
+  starter: py`import numpy as np
+import numpy.linalg as la
+
+def get_stiffness(k_array):
+    pass
+
+u = ...
+def_coord = ...
+tip = ...
+`,
+  setup: py`N = int(np.random.randint(8, 20))
+Ls = 10.0
+Ks = float(np.random.choice([300, 500, 700]))
+Mt = float(np.random.choice([120, 170, 220]))
+m = Mt / (N + 1)
+k = Ks * N
+l = Ls / N
+g = 981.0
+del Ls, Ks, Mt
+`,
+  check: py`def ref(ka):
+    n = len(ka)
+    K = np.zeros((n, n))
+    K[0, 0] += ka[0]
+    for i in range(1, n):
+        K[i-1:i+1, i-1:i+1] += ka[i] * np.array([[1.0, -1.0], [-1.0, 1.0]])
+    return K
+N = S['N']
+cases = [(S['k'] * np.ones(N),), (np.array([3.0]),), (np.array([1.0, 2.0, 3.0]),), (np.random.rand(7) * 10 + 1,)]
+G.expect_fn('get_stiffness', cases, ref, 4)
+uu = ORIG['solve'](ref(S['k'] * np.ones(N)), S['m'] * S['g'] * np.ones(N))
+G.expect('u', uu, 2)
+G.expect('def_coord', S['l'] * np.arange(N + 1) + np.append(0, uu), 2)
+G.expect('tip', uu[-1], 2)
+`,
+  hint: 'Start from K = np.zeros((n, n)) and add 2 × 2 blocks with slicing. np.append(0, u) puts the fixed point in front. The free end is u[-1].',
+  solution: p => py`import numpy as np
+import numpy.linalg as la
+
+def get_stiffness(k_array):
+    n = len(k_array)
+    K = np.zeros((n, n))
+    K[0, 0] += k_array[0]
+    for i in range(1, n):
+        K[i-1:i+1, i-1:i+1] += k_array[i] * np.array([[1, -1], [-1, 1]])
+    return K
+
+K = get_stiffness(k * np.ones(N))
+f = m * g * np.ones(N)
+u = la.solve(K, f)
+
+coord = np.array([l * i for i in range(N + 1)])
+def_coord = coord + np.append(0, u)
+tip = u[-1]
+`
+},
+{
+  id: 'l4-lumany', lab: 4, title: 'LU for many right-hand sides',
+  banned: ['numpy.linalg.solve', 'numpy.linalg.inv', 'scipy.linalg.solve', 'scipy.linalg.inv'],
+  params: r => ({}),
+  prompt: p => `
+<p>Use <code>scipy.linalg.lu</code> and <code>scipy.linalg.solve_triangular</code> (no <code>solve</code> or <code>inv</code>).</p>
+<ol>
+<li><code>my_LU_solve_1(K, f)</code>: solve <code>K u = f</code> for a 1d <code>f</code> and return the displacement at the free end, <code>u[-1]</code></li>
+<li><code>my_LU_solve_2(K, fmany)</code>: each column of the 2d array <code>fmany</code> is a force vector. Factor <code>K</code> once, solve for all columns, and return a 1d array with the free-end displacement for each column</li>
+<li><code>Kmix</code>: two slinkys glued together, each with <code>n</code> springs. The first <code>n</code> springs have stiffness <code>k1</code>, the next <code>n</code> have <code>k2</code>. Build the <code>2n × 2n</code> stiffness matrix with the given <code>get_stiffness</code>.</li>
+</ol>`,
+  given: [['K', '2d numpy array', 'example stiffness matrix'], ['f', '1d numpy array', 'example force'], ['fmany', '2d numpy array', 'example forces, one per column'], ['get_stiffness', 'function', 'stiffness matrix from spring stiffnesses'], ['n', 'int', 'springs per slinky'], ['k1', 'float', 'stiffness, first slinky'], ['k2', 'float', 'stiffness, second slinky']],
+  defines: [['my_LU_solve_1', 'function', 'returns u[-1]'], ['my_LU_solve_2', 'function', 'returns last row of the solutions'], ['Kmix', '2d numpy array', 'mixed stiffness matrix']],
+  starter: py`import numpy as np
+import scipy.linalg as sla
+
+def my_LU_solve_1(K, f):
+    pass
+
+def my_LU_solve_2(K, fmany):
+    pass
+
+Kmix = ...
+`,
+  setup: py`def get_stiffness(k_array):
+    n = len(k_array)
+    K = np.zeros((n, n))
+    K[0, 0] += k_array[0]
+    for i in range(1, n):
+        K[i-1:i+1, i-1:i+1] += k_array[i] * np.array([[1.0, -1.0], [-1.0, 1.0]])
+    return K
+N = 12
+K = get_stiffness(np.random.randint(5, 20, size=N).astype(float))
+f = np.ones(N) * 9.81
+fmany = np.ones((N, 5)) * 9.81 + np.random.choice([0, 1], (N, 5)) * 9.81
+n = int(np.random.randint(5, 15))
+k1 = float(np.random.choice([700, 500, 300])) * n
+k2 = float(np.random.choice([200, 100, 400])) * n
+del N
+`,
+  check: py`gs = S['get_stiffness']
+def mk(N):
+    return gs(np.random.rand(N) * 20 + 1)
+c1 = [(S['K'], S['f'])] + [(mk(N), np.random.randn(N)) for N in [1, 4, 9]]
+c2 = [(S['K'], S['fmany'])] + [(mk(N), np.random.randn(N, p)) for N, p in [(3, 1), (6, 4), (10, 7)]]
+G.expect_fn('my_LU_solve_1', c1, lambda K, f: ORIG['solve'](K, f)[-1], 3)
+G.expect_fn('my_LU_solve_2', c2, lambda K, F: ORIG['solve'](K, F)[-1, :], 4)
+n = S['n']
+G.expect('Kmix', gs(np.append(S['k1'] * np.ones(n), S['k2'] * np.ones(n))), 3)
+`,
+  hint: 'P, L, U = sla.lu(K). Then y = solve_triangular(L, P.T @ f, lower=True) and u = solve_triangular(U, y). With fmany the same two calls solve every column at once; take row -1. For Kmix use np.append(k1*np.ones(n), k2*np.ones(n)).',
+  solution: p => py`import numpy as np
+import scipy.linalg as sla
+
+def my_LU_solve_1(K, f):
+    P, L, U = sla.lu(K)
+    y = sla.solve_triangular(L, P.T @ f, lower=True)
+    u = sla.solve_triangular(U, y)
+    return u[-1]
+
+def my_LU_solve_2(K, fmany):
+    P, L, U = sla.lu(K)
+    Y = sla.solve_triangular(L, P.T @ fmany, lower=True)
+    X = sla.solve_triangular(U, Y)
+    return X[-1, :]
+
+Kmix = get_stiffness(np.append(k1 * np.ones(n), k2 * np.ones(n)))
+`
+},
+{
+  id: 'l4-plate', lab: 4, title: 'Temperature on a plate',
+  banned: ['numpy.linalg.solve', 'scipy.linalg.solve'],
+  params: r => ({ r: r.pick([2, 3]), c: r.pick([2, 3, 4]) }),
+  prompt: p => `
+<p>A plate has a ${p.r} × ${p.c} grid of interior points with unknown temperatures. Number them row by row: point <code>(i, j)</code> is unknown <code>T[i*${p.c} + j]</code>.</p>
+<p>The boundary temperatures are fixed: <code>top[j]</code> sits above row 0, <code>bottom[j]</code> below row ${p.r - 1}, <code>left[i]</code> left of column 0, and <code>right[i]</code> right of column ${p.c - 1}.</p>
+<p>At equilibrium each interior temperature is the average of its 4 neighbors (interior or boundary). Multiply by 4 and move the known boundary values to the right-hand side:</p>
+<pre>4*T(i,j) − (interior neighbors) = (sum of boundary neighbors)</pre>
+<p>Define the ${p.r * p.c} × ${p.r * p.c} matrix <code>A</code>, the right-hand side <code>b</code>, and the solution <code>T</code> (1d, length ${p.r * p.c}).</p>
+<p class="ban"><code>np.linalg.solve()</code> is not allowed here.</p>`,
+  given: [['top', '1d numpy array', 'length c'], ['bottom', '1d numpy array', 'length c'], ['left', '1d numpy array', 'length r'], ['right', '1d numpy array', 'length r'], ['r', 'int', 'rows of interior points'], ['c', 'int', 'columns of interior points']],
+  defines: [['A', '2d numpy array', 'system matrix'], ['b', '1d numpy array', 'right-hand side'], ['T', '1d numpy array', 'interior temperatures']],
+  starter: py`import numpy as np
+
+A = ...
+b = ...
+T = ...
+`,
+  setup: py`r = PARAMS['r']
+c = PARAMS['c']
+top = np.random.randint(50, 100, size=c).astype(float)
+bottom = np.random.randint(0, 30, size=c).astype(float)
+left = np.random.randint(20, 60, size=r).astype(float)
+right = np.random.randint(20, 60, size=r).astype(float)
+`,
+  check: py`r = S['r']; c = S['c']
+n = r * c
+A = np.zeros((n, n))
+b = np.zeros(n)
+for i in range(r):
+    for j in range(c):
+        p = i * c + j
+        A[p, p] = 4
+        for di, dj in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            ii, jj = i + di, j + dj
+            if 0 <= ii < r and 0 <= jj < c:
+                A[p, ii * c + jj] = -1
+        if i == 0: b[p] += S['top'][j]
+        if i == r - 1: b[p] += S['bottom'][j]
+        if j == 0: b[p] += S['left'][i]
+        if j == c - 1: b[p] += S['right'][i]
+G.expect('A', A, 4)
+G.expect('b', b, 3)
+G.expect('T', ORIG['solve'](A, b), 3)
+`,
+  hint: 'Loop over i and j, compute p = i*c + j, put 4 on A[p, p], and -1 at each neighbor that is inside the grid. A neighbor outside the grid is a boundary value: add it to b[p]. Then T = np.linalg.inv(A) @ b.',
+  solution: p => py`import numpy as np
+
+n = r * c
+A = np.zeros((n, n))
+b = np.zeros(n)
+for i in range(r):
+    for j in range(c):
+        p = i * c + j
+        A[p, p] = 4
+        if i > 0:
+            A[p, p - c] = -1
+        else:
+            b[p] += top[j]
+        if i < r - 1:
+            A[p, p + c] = -1
+        else:
+            b[p] += bottom[j]
+        if j > 0:
+            A[p, p - 1] = -1
+        else:
+            b[p] += left[i]
+        if j < c - 1:
+            A[p, p + 1] = -1
+        else:
+            b[p] += right[i]
+
+T = np.linalg.inv(A) @ b
+`
+},
+
 /* ---------------- LAB 5 ---------------- */
 {
   id: 'l5-flights', lab: 5, title: 'Flights with layovers',
@@ -630,9 +1249,30 @@ num_reached = ...
 `,
   setup: py`person = PARAMS['person']
 def nullspace(M, tol=1e-10):
-    u, s, vh = np.linalg.svd(M)
-    rank = int((s > tol).sum())
-    return vh[rank:].T.copy()
+    A = np.array(M, dtype=float)
+    m, n = A.shape
+    piv = []
+    r = 0
+    for c in range(n):
+        if r >= m:
+            break
+        p = r + int(np.argmax(np.abs(A[r:, c])))
+        if abs(A[p, c]) < tol:
+            continue
+        A[[r, p]] = A[[p, r]]
+        A[r] = A[r] / A[r, c]
+        for i in range(m):
+            if i != r:
+                A[i] = A[i] - A[i, c] * A[r]
+        piv.append(c)
+        r += 1
+    free = [c for c in range(n) if c not in piv]
+    N = np.zeros((n, len(free)))
+    for k, f in enumerate(free):
+        N[f, k] = 1
+        for i, pc in enumerate(piv):
+            N[pc, k] = -A[i, f]
+    return np.round(N, 12) + 0.0
 n = 40
 k = int(np.random.randint(3, 7))
 labels = np.random.permutation(np.arange(n) % k)
@@ -780,6 +1420,144 @@ def separation(network):
         if np.all(M > 0):
             return k
     return -1
+`
+},
+
+{
+  id: 'l5-incidence', lab: 5, title: 'Incidence matrix from adjacency',
+  params: r => ({}),
+  prompt: p => `
+<p>Write <code>get_incidence_matrix(G)</code>. <code>G</code> is the symmetric adjacency matrix of an undirected graph with <code>n</code> nodes and no self-loops.</p>
+<p>Return the edge-node incidence matrix <code>M</code> with one row per edge. List the edges as pairs <code>(i, j)</code> with <code>i &lt; j</code> and <code>G[i, j] != 0</code>, in order of <code>i</code> and then <code>j</code> (a double loop). For edge number <code>l</code>:</p>
+<pre>M[l, i] = 1
+M[l, j] = -1</pre>
+<p>So <code>M</code> has shape <code>(number of edges, n)</code>.</p>`,
+  given: [['G', 'numpy array', 'example adjacency matrix']],
+  defines: [['get_incidence_matrix', 'function', 'returns the incidence matrix']],
+  starter: py`import numpy as np
+
+def get_incidence_matrix(G):
+    pass
+`,
+  setup: py`G = np.array([[0, 1, 1, 0], [1, 0, 1, 0], [1, 1, 0, 1], [0, 0, 1, 0]], dtype=float)
+`,
+  check: py`def ref(G):
+    n = G.shape[0]
+    rows = []
+    for i in range(n):
+        for j in range(i + 1, n):
+            if G[i, j] != 0:
+                r = np.zeros(n); r[i] = 1; r[j] = -1
+                rows.append(r)
+    return np.array(rows)
+def rnd(n, q):
+    A = np.triu((np.random.rand(n, n) < q).astype(float), 1)
+    A = A + A.T
+    A[0, 1] = A[1, 0] = 1
+    return A
+cases = [(S['G'],), (rnd(6, 0.4),), (rnd(10, 0.25),), (np.ones((5, 5)) - np.eye(5),)]
+G.expect_fn('get_incidence_matrix', cases, ref, 10)
+`,
+  hint: 'Collect rows in a Python list: for i in range(n), for j in range(i+1, n), if G[i, j] != 0 make a zero row, set +1 and -1, append. Return np.array(rows).',
+  solution: p => py`import numpy as np
+
+def get_incidence_matrix(G):
+    n = G.shape[0]
+    rows = []
+    for i in range(n):
+        for j in range(i + 1, n):
+            if G[i, j] != 0:
+                row = np.zeros(n)
+                row[i] = 1
+                row[j] = -1
+                rows.append(row)
+    return np.array(rows)
+`
+},
+{
+  id: 'l5-groups', lab: 5, title: 'Group sizes from the nullspace',
+  params: r => ({ person: r.int(0, 29) }),
+  prompt: p => `
+<p><code>D</code> is the edge-node incidence matrix of a friendship network of 30 people. The given <code>nullspace(D)</code> returns a 2d array <code>null</code> of shape <code>(30, d)</code>. Like the lab's sympy version, each column is a 0/1 indicator of one friend group: <code>null[i, g] = 1</code> when person <code>i</code> is in group <code>g</code>.</p>
+<ol>
+<li><code>ngroups</code>: number of friend groups (<code>int</code>)</li>
+<li><code>sizes</code>: 1d array with the size of each group, in column order</li>
+<li><code>max_group_size</code>: the size of the largest group (<code>int</code>)</li>
+<li><code>lonely</code>: the number of people with no friends at all (<code>int</code>)</li>
+<li><code>origin_size</code>: the size of the group that person ${p.person} belongs to (<code>int</code>)</li>
+</ol>`,
+  given: [['D', 'numpy array', 'incidence matrix, shape (edges, 30)'], ['nullspace', 'function', 'indicator basis of the nullspace']],
+  defines: [['ngroups', 'int', 'number of groups'], ['sizes', '1d numpy array', 'size of each group'], ['max_group_size', 'int', 'largest group'], ['lonely', 'int', 'people with no friends'], ['origin_size', 'int', 'size of that person\'s group']],
+  starter: py`import numpy as np
+
+ngroups = ...
+sizes = ...
+max_group_size = ...
+lonely = ...
+origin_size = ...
+`,
+  setup: py`person = PARAMS['person']
+def nullspace(M, tol=1e-10):
+    A = np.array(M, dtype=float)
+    m, n = A.shape
+    piv = []
+    r = 0
+    for c in range(n):
+        if r >= m:
+            break
+        p = r + int(np.argmax(np.abs(A[r:, c])))
+        if abs(A[p, c]) < tol:
+            continue
+        A[[r, p]] = A[[p, r]]
+        A[r] = A[r] / A[r, c]
+        for i in range(m):
+            if i != r:
+                A[i] = A[i] - A[i, c] * A[r]
+        piv.append(c)
+        r += 1
+    free = [c for c in range(n) if c not in piv]
+    N = np.zeros((n, len(free)))
+    for k, f in enumerate(free):
+        N[f, k] = 1
+        for i, pc in enumerate(piv):
+            N[pc, k] = -A[i, f]
+    return np.round(N, 12) + 0.0
+n = 30
+k = int(np.random.randint(4, 8))
+labels = np.random.permutation(np.arange(n) % k)
+iso = np.random.choice(n, int(np.random.randint(1, 4)), replace=False)
+labels[iso] = k + np.arange(len(iso))
+edges = set()
+for g in range(k):
+    mem = list(np.where(labels == g)[0])
+    np.random.shuffle(mem)
+    for a, b in zip(mem[:-1], mem[1:]):
+        edges.add((min(a, b), max(a, b)))
+D = np.zeros((len(edges), n))
+for row, (a, b) in enumerate(sorted(edges)):
+    D[row, a] = 1
+    D[row, b] = -1
+del n, k, labels, iso, edges, g, mem, a, b, row
+`,
+  check: py`null = S['nullspace'](S['D'])
+sz = null.sum(axis=0)
+G.expect('ngroups', null.shape[1], 2)
+G.expect('sizes', sz, 2)
+G.expect('max_group_size', int(sz.max()), 2)
+G.expect('lonely', int(np.sum(sz == 1)), 2)
+g = np.where(null[S['person']] != 0)[0][0]
+G.expect('origin_size', int(sz[g]), 2)
+`,
+  hint: 'Column sums give group sizes: null.sum(axis=0). A person with no friends forms a group of size 1. np.where(null[p] != 0)[0][0] is the column of person p.',
+  solution: p => py`import numpy as np
+
+null = nullspace(D)
+ngroups = null.shape[1]
+sizes = null.sum(axis=0)
+max_group_size = int(sizes.max())
+lonely = int(np.sum(sizes == 1))
+g = np.where(null[${p.person}] != 0)[0][0]
+origin_size = int(sizes[g])
 `
 },
 
@@ -949,6 +1727,203 @@ G.expect('P_CB', ORIG['inv'](Cm) @ Bm, 4)
 c = np.linalg.inv(B) @ x
 y = B @ d
 P_CB = np.linalg.inv(C) @ B
+`
+},
+{
+  id: 'l6-dct', lab: 6, title: 'Build the DCT basis',
+  params: r => ({ tol: r.pick([0.25, 0.4, 0.5]) }),
+  prompt: p => `
+<p>The DCT matrix <code>D</code> has entry (row <code>i</code>, column <code>k</code>)</p>
+<pre>D[i, k] = cos( (π/N) (i + 1/2) k )</pre>
+<p>with every column then normalized to length 1.</p>
+<ol>
+<li>Write <code>create_dct_basis(N)</code> that returns this <code>N × N</code> matrix</li>
+<li><code>ybar</code>: the DCT coordinates of the given signal <code>y</code>, so that <code>D @ ybar = y</code> (no solve or inv: <code>D</code> is orthonormal)</li>
+<li><code>W</code>: an <code>N × N</code> array whose row <code>k</code> is the running total <code>ybar[0] d_0 + ... + ybar[k] d_k</code>, where <code>d_i</code> is column <code>i</code> of <code>D</code></li>
+<li><code>yremove</code>: a copy of <code>ybar</code> with every entry whose absolute value is less than ${p.tol} set to 0, and <code>removed_entries</code>: how many entries were set to 0</li>
+</ol>`,
+  given: [['N', 'int', 'signal length'], ['y', '1d numpy array', 'signal, length N']],
+  defines: [['create_dct_basis', 'function', 'N × N DCT matrix'], ['ybar', '1d numpy array', 'DCT coordinates of y'], ['W', '2d numpy array', 'running totals of the waves'], ['yremove', '1d numpy array', 'thresholded coordinates'], ['removed_entries', 'int', 'entries set to 0']],
+  starter: py`import numpy as np
+import numpy.linalg as la
+
+def create_dct_basis(N):
+    pass
+
+ybar = ...
+W = ...
+yremove = ...
+removed_entries = ...
+`,
+  setup: py`tol = PARAMS['tol']
+N = 16
+x = np.linspace(0, 1, N)
+y = np.where(((x >= 0.25) & (x < 0.5)) | ((x >= 0.75) & (x < 1.0)), 1.0, -1.0) + np.round(np.random.randn(N) * 0.2, 2)
+del x
+`,
+  check: py`def ref(N):
+    D = np.zeros((N, N))
+    for k in range(N):
+        for i in range(N):
+            D[i, k] = np.cos(np.pi / N * (i + 0.5) * k)
+        D[:, k] = D[:, k] / np.linalg.norm(D[:, k])
+    return D
+G.expect_fn('create_dct_basis', [(16,), (1,), (5,), (8,), (33,)], ref, 3)
+D = ref(S['N'])
+yb = D.T @ S['y']
+W = np.zeros((S['N'], S['N']))
+for k in range(S['N']):
+    W[k] = D[:, :k+1] @ yb[:k+1]
+yr = yb.copy()
+mask = np.abs(yr) < S['tol']
+yr[mask] = 0
+G.expect('ybar', yb, 2)
+G.expect('W', W, 2)
+G.expect('yremove', yr, 2)
+G.expect('removed_entries', int(mask.sum()), 1)
+`,
+  hint: 'Two loops (k over columns, i over rows), then divide column k by la.norm(D[:, k]). For an orthonormal D, the inverse is D.T, so ybar = D.T @ y. Row k of W is D[:, :k+1] @ ybar[:k+1].',
+  solution: p => py`import numpy as np
+import numpy.linalg as la
+
+def create_dct_basis(N):
+    D = np.zeros((N, N))
+    for k in range(N):
+        for i in range(N):
+            D[i, k] = np.cos(np.pi / N * (i + 0.5) * k)
+        D[:, k] = D[:, k] / la.norm(D[:, k])
+    return D
+
+D = create_dct_basis(N)
+ybar = D.T @ y
+
+W = np.zeros((N, N))
+for k in range(N):
+    W[k] = D[:, :k+1] @ ybar[:k+1]
+
+yremove = ybar.copy()
+removed_entries = 0
+for i in range(N):
+    if abs(yremove[i]) < ${p.tol}:
+        yremove[i] = 0
+        removed_entries += 1
+`
+},
+{
+  id: 'l6-audio', lab: 6, title: 'Audio compression in sections',
+  params: r => ({ N: r.pick([32, 48, 64]), m: r.pick([6, 10, 15]) }),
+  prompt: p => `
+<p><code>y</code> is an audio signal. Compress it in sections of <code>N = ${p.N}</code> samples, keeping only the first <code>m = ${p.m}</code> DCT basis vectors.</p>
+<ol>
+<li><code>sections</code>: how many full sections of length ${p.N} fit in <code>y</code> (<code>int</code>)</li>
+<li><code>D_trunc</code>: the first ${p.m} columns of <code>D = create_dct_basis(${p.N})</code></li>
+<li><code>y_trunc</code>: same shape as <code>y</code>. For each section <code>sec = y[i*N:(i+1)*N]</code>, convert to truncated DCT coordinates and back, and store the result in the same slice of <code>y_trunc</code>. Entries after the last full section stay 0.</li>
+</ol>`,
+  given: [['y', '1d numpy array', 'audio signal'], ['create_dct_basis', 'function', 'n × n DCT basis matrix']],
+  defines: [['sections', 'int', 'number of full sections'], ['D_trunc', '2d numpy array', 'first m DCT columns'], ['y_trunc', '1d numpy array', 'compressed signal']],
+  starter: py`import numpy as np
+
+sections = ...
+D_trunc = ...
+y_trunc = ...
+`,
+  setup: py`Nsec = PARAMS['N']
+msec = PARAMS['m']
+def create_dct_basis(n):
+    j = np.arange(n).reshape(-1, 1)
+    k = np.arange(n).reshape(1, -1)
+    B = np.cos(np.pi * (2 * j + 1) * k / (2 * n))
+    B[:, 0] *= np.sqrt(1 / n)
+    B[:, 1:] *= np.sqrt(2 / n)
+    return B
+L = Nsec * int(np.random.randint(4, 8)) + int(np.random.randint(0, Nsec // 2))
+x = np.linspace(0, 2 * np.pi, L)
+y = np.zeros(L)
+for _ in range(8):
+    y += np.cos((x + np.random.rand() * 10 - 5) * np.random.rand() * 20) * np.random.rand()
+del L, x, _
+`,
+  check: py`N = S['Nsec']; m = S['msec']; y = S['y']
+sec_n = len(y) // N
+Dt = S['create_dct_basis'](N)[:, :m]
+yt = np.zeros_like(y)
+for i in range(sec_n):
+    yt[i*N:(i+1)*N] = Dt @ (Dt.T @ y[i*N:(i+1)*N])
+G.expect('sections', sec_n, 2)
+G.expect('D_trunc', Dt, 3)
+G.expect('y_trunc', yt, 5)
+`,
+  hint: 'sections = len(y) // N. D[:, :m] keeps the first m columns. In the loop: sec_bar = D_trunc.T @ sec, then D_trunc @ sec_bar goes back.',
+  solution: p => py`import numpy as np
+
+N = ${p.N}
+m = ${p.m}
+D = create_dct_basis(N)
+sections = len(y) // N
+D_trunc = D[:, :m]
+
+y_trunc = np.zeros_like(y)
+for i in range(sections):
+    sec = y[i * N:(i + 1) * N]
+    sec_bar = D_trunc.T @ sec
+    y_trunc[i * N:(i + 1) * N] = D_trunc @ sec_bar
+`
+},
+{
+  id: 'l6-haar', lab: 6, title: 'Haar basis: keep the big coordinates',
+  params: r => ({ keep: r.pick([3, 4, 5]) }),
+  prompt: p => `
+<p>The columns of the 8 × 8 matrix <code>H</code> are the Haar wavelet basis (orthogonal but <b>not</b> orthonormal), and <code>x</code> is a vector in R<sup>8</sup>.</p>
+<ol>
+<li><code>xH</code>: the coordinates of <code>x</code> in the Haar basis, so <code>H @ xH = x</code></li>
+<li><code>xH_small</code>: a copy of <code>xH</code> where only the ${p.keep} entries with the largest absolute value are kept and the other ${8 - p.keep} are set to 0</li>
+<li><code>x_approx</code>: the vector (standard basis) with Haar coordinates <code>xH_small</code></li>
+<li><code>rel_err</code>: the entrywise relative error <code>|x − x_approx| / |x|</code> (1d array)</li>
+</ol>`,
+  given: [['H', '2d numpy array', 'Haar basis (columns)'], ['x', '1d numpy array', 'vector in R^8']],
+  defines: [['xH', '1d numpy array', 'Haar coordinates'], ['xH_small', '1d numpy array', 'kept coordinates'], ['x_approx', '1d numpy array', 'approximation of x'], ['rel_err', '1d numpy array', 'relative error']],
+  starter: py`import numpy as np
+import numpy.linalg as la
+
+xH = ...
+xH_small = ...
+x_approx = ...
+rel_err = ...
+`,
+  setup: py`keep = PARAMS['keep']
+H = np.array([[1, 1, 1, 0, 1, 0, 0, 0],
+              [1, 1, 1, 0, -1, 0, 0, 0],
+              [1, 1, -1, 0, 0, 1, 0, 0],
+              [1, 1, -1, 0, 0, -1, 0, 0],
+              [1, -1, 0, 1, 0, 0, 1, 0],
+              [1, -1, 0, 1, 0, 0, -1, 0],
+              [1, -1, 0, -1, 0, 0, 0, 1],
+              [1, -1, 0, -1, 0, 0, 0, -1]], dtype=float)
+x = np.array([240, 170, 200, 200, -150, -200, -225, -220], dtype=float) + np.round(np.random.randn(8) * 15, 1)
+x[np.abs(x) < 1] = 7
+`,
+  check: py`xH = ORIG['solve'](S['H'], S['x'])
+idx = np.argsort(np.abs(xH))[:8 - S['keep']]
+xs = xH.copy()
+xs[idx] = 0
+xa = S['H'] @ xs
+G.expect('xH', xH, 3)
+G.expect('xH_small', xs, 3)
+G.expect('x_approx', xa, 2)
+G.expect('rel_err', np.abs(S['x'] - xa) / np.abs(S['x']), 2)
+`,
+  hint: 'H is not orthonormal, so use la.solve(H, x) (or la.inv(H) @ x). np.argsort(np.abs(xH)) lists indices from smallest to largest, so the first 8 - keep of them are the ones to zero.',
+  solution: p => py`import numpy as np
+import numpy.linalg as la
+
+xH = la.solve(H, x)
+
+idx = np.argsort(np.abs(xH))[:${8 - p.keep}]
+xH_small = xH.copy()
+xH_small[idx] = 0
+
+x_approx = H @ xH_small
+rel_err = np.abs(x - x_approx) / np.abs(x)
 `
 }
 ];

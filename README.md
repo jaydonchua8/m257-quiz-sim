@@ -3,7 +3,7 @@
 Practice site for MATH 257 Python Quiz 1 (Labs 1–6). Code runs on real NumPy in the browser through Pyodide and is autograded with fresh random data on every run.
 
 - **Moves:** 24 short drills, one core NumPy pattern each
-- **Problems:** 19 quiz-style problems, each tagged with the moves it uses
+- **Problems:** 36 quiz-style problems (every CL lab notebook and CHW coding problem from Labs 1-6), each tagged with the moves it uses
 - **Mock quiz:** 4 problems from 4 labs, course doc only, no hints
 
 ## Run locally
