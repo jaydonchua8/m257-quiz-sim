@@ -2122,6 +2122,48 @@ window.addEventListener('resize', () => { if (editor) { editor.setFontSize(Math.
 if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', retheme);
 new MutationObserver(retheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
+/* sound: synthesized with Web Audio, no files */
+let actx = null;
+const soundOn = () => store.sound !== false;
+function audio() {
+  if (!actx) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; try { actx = new C(); } catch (e) { return null; } }
+  if (actx.state === 'suspended') actx.resume().catch(() => {});
+  return actx;
+}
+['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, () => { if (soundOn()) audio(); }, { capture: true }));
+function tone(ctx, t0, freq, dur, type, vol, slideTo) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t0);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g).connect(ctx.destination);
+  o.start(t0); o.stop(t0 + dur + 0.02);
+}
+function sfx(kind) {
+  if (!soundOn()) return;
+  const ctx = audio(); if (!ctx) return;
+  const t = ctx.currentTime + 0.01;
+  if (kind === 'right') {
+    tone(ctx, t, 880, 0.12, 'sine', 0.22);
+    tone(ctx, t + 0.09, 1318.5, 0.28, 'sine', 0.22);
+    tone(ctx, t + 0.09, 2637, 0.2, 'sine', 0.04);
+  } else if (kind === 'big') {
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(ctx, t + i * 0.075, f, 0.3, 'triangle', 0.18));
+  } else {
+    tone(ctx, t, 196, 0.16, 'square', 0.07, 165);
+    tone(ctx, t + 0.15, 147, 0.28, 'square', 0.07, 110);
+  }
+}
+const sndHTML = () => `<button type="button" class="link snd" aria-pressed="${soundOn()}">${soundOn() ? 'sound on' : 'sound off'}</button>`;
+document.addEventListener('click', e => {
+  const b = e.target.closest('.snd'); if (!b) return;
+  store.sound = !soundOn(); save();
+  document.querySelectorAll('.snd').forEach(x => { x.textContent = soundOn() ? 'sound on' : 'sound off'; x.setAttribute('aria-pressed', soundOn()); });
+  if (soundOn()) sfx('right');
+});
+
 /* confetti */
 function burst(x, y) {
   if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -2167,7 +2209,7 @@ function renderHome() {
   const hist = (store.history || []).slice(-6);
   const dots = (arr, m) => `<div class="dots">${arr.map(q => `<button type="button" class="d ${itemCls(q.id)}" data-m="${m}" data-id="${q.id}" title="${esc(q.title)}" aria-label="${esc(q.title)}"></button>`).join('')}</div>`;
   $('#app').innerHTML = `<main class="page">
-    <div class="top"><span>wed 10/28 · 6:15 pm · chem annex</span><span class="sp"></span>${rtHTML()}<button type="button" class="link" id="refBtn">reference</button></div>
+    <div class="top"><span>wed 10/28 · 6:15 pm · chem annex</span><span class="sp"></span>${rtHTML()}${sndHTML()}<button type="button" class="link" id="refBtn">reference</button></div>
     <section class="hero">
       <h1>python quiz 1<span>.</span></h1>
       <p>Learn each move, then put moves together. Real NumPy grades every run.</p>
@@ -2246,6 +2288,7 @@ function renderWork() {
       <span class="sp"></span>
       ${learn ? `<span class="streak">streak <b>${store.streak || 0}</b></span>` : `<button type="button" class="link" id="finish">finish quiz</button>`}
       ${rtHTML()}
+      ${sndHTML()}
       <button type="button" class="link" id="refBtn">reference</button>
     </div>
     <div class="dots navdots" aria-label="Items">${list.map((it, i) => `<button type="button" class="d ${navCls(i)} ${i === cur ? 'cur' : ''} ${i === cur && justPassed ? 'pop' : ''}" data-i="${i}" title="${esc(QBY[it.id].title)}" aria-label="${esc(QBY[it.id].title)}"></button>`).join('')}</div>
@@ -2346,6 +2389,7 @@ async function grade() {
     last = res;
     justPassed = res.score >= PTS && !wasDone && !assisted;
     renderKeep();
+    sfx(res.score >= PTS ? (!wasDone && !assisted ? 'big' : 'right') : 'wrong');
     if (res.score >= PTS && !assisted) { const r = $('#run').getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2); }
     const t = $('.idea') || $('#res'); if (t) t.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   } else refreshRun();
@@ -2418,6 +2462,7 @@ function renderGame() {
     <div class="g-bar">
       <button type="button" class="link" id="back">← quit</button>
       <span class="sp"></span>
+      ${sndHTML()}
       <span class="combo ${G.bump ? 'bump' : ''}">${mult > 1 ? '×' + mult : ''}</span>
       <span class="g-score"><b>${G.score}</b></span>
       <span class="lives" aria-label="${G.lives} lives left">${Array.from({ length: LIVES }, (_, n) => `<i class="${n >= G.lives ? 'gone' : ''} ${G.hit && n === G.lives ? 'hit' : ''}"></i>`).join('')}</span>
@@ -2446,6 +2491,7 @@ function pick(k, btn) {
   if (!G || G.picked !== null) return;
   const c = G.deck[G.i].c, rec = Object.assign({ right: 0, wrong: 0, streak: 0 }, rCard(c.id));
   G.picked = k;
+  sfx(k === 0 ? 'right' : 'wrong');
   if (k === 0 && G.elim) {
     const gain = 50; G.score += gain;
     const r = btn.getBoundingClientRect();
